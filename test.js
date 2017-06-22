@@ -3,6 +3,11 @@ var camera, scene, renderer;
 var pointLight;
 var objects = [], materials = [];
 
+/**
+ * need to get rid of this and somehow
+ * assign everything to the global scope here
+ * Maybe use window but there must be a better solution
+ */
 const THREE = this.THREE;
 const container = this.container;
 

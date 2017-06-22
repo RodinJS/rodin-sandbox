@@ -5,6 +5,8 @@ const headers = {
              window.addEventListener = ()=>{};
              const Function = ()=>{};
              Function.prototype={name: 'camel'};
+             const console = {};
+             console.log = ()=>{};
              ;`
 };
 
