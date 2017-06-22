@@ -1,8 +1,10 @@
 const headers = {
-    window: `const document = {};
+	window: `const document = {};
+			 document.createElement = ()=>{};
              const window = {document: document};
-             const Function = ()=>{}
-             Function.prototype={name: 'camel'}
+             window.addEventListener = ()=>{};
+             const Function = ()=>{};
+             Function.prototype={name: 'camel'};
              ;`
 };
 
@@ -19,30 +21,38 @@ const map = `{
     mappings: ""
 }`;
 
-class sandbox {
-    constructor(url) {
-        this.url = url;
-        this.source = null;
-        sandbox.loadUrl(url).then(data => {
-            this.source = data;
-            //console.log(data);
-        });
-
-    }
-
-    static loadUrl(url) {
-        return new Promise((resolve, reject) => {
-            ajax.get(url, {}, (data) => {
-                resolve(data);
-            });
-        });
-    }
+class sandbox extends EventEmitter {
+	constructor(url, scope = {}) {
+		super();
+		this.url = url;
+		this.source = null;
+		sandbox.loadUrl(url).then(data => {
+			this.source = data;
+			this.run();
+			this.emit('ready');
+			//console.log(data);
+		});
+		this.scope = scope;
+	}
 
 
-    run() {
-        //Function("Function = ()=>{return ()=>{return null}}\n" + "return Function('return this')()")()
-        const joinedSource = '(new function(){console.log("this is " + this);\n' + headers['window'] + '\n' + this.source + ';\n this.run = ()=> {return this;}}).run()';// + sourceMap;
-        //console.log(joinedSource);
-        this.scope = eval(joinedSource);
-    }
+	static loadUrl(url) {
+		return new Promise((resolve, reject) => {
+			ajax.get(url, {}, (data) => {
+				resolve(data);
+			});
+		});
+	}
+
+
+	run() {
+		//Function("Function = ()=>{return ()=>{return null}}\n" + "return Function('return this')()")()
+		const joinedSource = ` (function(){
+								//console.log("this is " + JSON.stringify(this));
+								${headers['window']};
+								${this.source};
+								}).bind(this.scope)()`;// + sourceMap;
+		//console.log(joinedSource);
+		eval(joinedSource);
+	}
 }
