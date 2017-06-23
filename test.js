@@ -1,3 +1,12 @@
+// import {a} from 'uxt';
+//
+// uxt.call();
+//
+// sandbox_import([{f: 'filename', o: {'x': 'x', 'y': 'z'}}], function (a) {
+//
+// });
+//
+
 var stats;
 var camera, scene, renderer;
 var pointLight;
