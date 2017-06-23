@@ -4,8 +4,11 @@ container86 = document.createElement('canvas');
 document.body.appendChild(container86);
 
 three86Sandbox.on('ready', () => {
-	//console.log(Object.assign({container: container86}, three86Sandbox.scope));
-	const app = new sandbox('test.js', Object.assign({container: container86}, three86Sandbox.scope));
+    //console.log(Object.assign({container: container86}, three86Sandbox.scope));
+    const app = new sandbox('test.js', Object.assign({container: container86}, three86Sandbox.scope));
+    app.on('ready', () => {
+        console.log(app.exports);
+    });
 });
 
 
@@ -15,6 +18,9 @@ container80 = document.createElement('canvas');
 document.body.appendChild(container80);
 
 three80Sandbox.on('ready', () => {
-	//console.log(Object.assign({container: container80}, three80Sandbox.scope));
-	const app = new sandbox('test.js', Object.assign({container: container80}, three80Sandbox.scope));
+    //console.log(Object.assign({container: container80}, three80Sandbox.scope));
+    const app = new sandbox('test.js', Object.assign({container: container80}, three80Sandbox.scope));
+    app.on('ready', () => {
+        console.log(app.exports);
+    });
 });

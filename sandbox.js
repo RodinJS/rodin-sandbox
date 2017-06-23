@@ -1,13 +1,17 @@
 const headers = {
-	window: `const document = {};
+    window: `const document = {};
 			 document.createElement = ()=>{};
              const window = {document: document};
              window.addEventListener = ()=>{};
              const Function = ()=>{};
              Function.prototype={name: 'camel'};
-             const console = {};
-             console.log = ()=>{};
-             ;`
+             //const console = {};
+             //console.log = ()=>{};
+             //console.warn = ()=>{};
+             ;`,
+    sandbox: `const sandbox_import = ()=>{};
+                `
+
 };
 
 const sourceMap = '\n//# sourceMappingURL=test.js';
@@ -24,37 +28,39 @@ const map = `{
 }`;
 
 class sandbox extends EventEmitter {
-	constructor(url, scope = {}) {
-		super();
-		this.url = url;
-		this.source = null;
-		sandbox.loadUrl(url).then(data => {
-			this.source = data;
-			this.run();
-			this.emit('ready');
-			//console.log(data);
-		});
-		this.scope = scope;
-	}
+    constructor(url, scope = {}) {
+        super();
+        this.url = url;
+        this.source = null;
+        sandbox.loadUrl(url).then(data => {
+            this.source = data;
+            this.run();
+            this.emit('ready');
+            //console.log(data);
+        });
+        this.exports = {};
+        this.scope = scope;
+    }
 
 
-	static loadUrl(url) {
-		return new Promise((resolve, reject) => {
-			ajax.get(url, {}, (data) => {
-				resolve(data);
-			});
-		});
-	}
+    static loadUrl(url) {
+        return new Promise((resolve, reject) => {
+            ajax.get(url, {}, (data) => {
+                resolve(data);
+            });
+        });
+    }
 
 
-	run() {
-		//Function("Function = ()=>{return ()=>{return null}}\n" + "return Function('return this')()")()
-		const joinedSource = ` (function(){
-								//console.log("this is " + JSON.stringify(this));
+    run() {
+        //Function("Function = ()=>{return ()=>{return null}}\n" + "return Function('return this')()")()
+        const joinedSource = ` (function(){
+                                const sandbox_exports = {};
 								${headers['window']};
 								${this.source};
+								return sandbox_exports;
 								}).bind(this.scope)()`;// + sourceMap;
-		//console.log(joinedSource);
-		eval(joinedSource);
-	}
+        //console.log(joinedSource);
+        this.exports = eval(joinedSource);
+    }
 }
