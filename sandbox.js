@@ -1,5 +1,5 @@
 const headers = {
-    window: `const document = {};
+	window: `const document = {};
 			 document.createElement = ()=>{};
              const window = {document: document};
              window.addEventListener = ()=>{};
@@ -9,7 +9,7 @@ const headers = {
              //console.log = ()=>{};
              //console.warn = ()=>{};
              ;`,
-    sandbox: `const sandbox_import = ()=>{};
+	sandbox: `const sandbox_import = ()=>{};
                 `
 
 };
@@ -28,39 +28,121 @@ const map = `{
 }`;
 
 class sandbox extends EventEmitter {
-    constructor(url, scope = {}) {
-        super();
-        this.url = url;
-        this.source = null;
-        sandbox.loadUrl(url).then(data => {
-            this.source = data;
-            this.run();
-            this.emit('ready');
-            //console.log(data);
-        });
-        this.exports = {};
-        this.scope = scope;
-    }
+	constructor(url, exportType = sandbox.types.EXPORT_WINDOW_SCOPE, scope = {}) {
+		super();
+		this.url = url;
+		this.source = null;
+		sandbox.loadUrl(url).then(data => {
+			this.source = data;
+			this.emit('loaded');
+
+			//transpile
+			this.emit('transpiled');
+
+			this.run();
+		});
+		this.exports = {};
+		this.scope = scope;
+		this.dependencies = [];
+		this.exportType = exportType;
+		this.isReady = false;
+		this._readyDependensyCount = 0;
+
+		this.on('ready', () => {
+			this.isReady = true;
+		})
+	}
 
 
-    static loadUrl(url) {
-        return new Promise((resolve, reject) => {
-            ajax.get(url, {}, (data) => {
-                resolve(data);
-            });
-        });
-    }
+	static loadUrl(url) {
+		return new Promise((resolve, reject) => {
+			ajax.get(url, {}, (data) => {
+				resolve(data);
+			});
+		});
+	}
 
+	addDependency(url, exportType = this.exportType) {
+		const dependency = new sandbox(url, exportType);
 
-    run() {
-        //Function("Function = ()=>{return ()=>{return null}}\n" + "return Function('return this')()")()
-        const joinedSource = ` (function(){
+		// change this logic so we wont have problems
+		// with many dependencies and get this event
+		// sooner that all the dependencies are ready
+		dependency.on('ready', () => {
+			this._readyDependensyCount++;
+			if (this._readyDependensyCount === this.dependencies.length) {
+				this.emit('dependencies_ready');
+			}
+		});
+
+		this.dependencies.push(dependency);
+	}
+
+	run() {
+
+		/**
+		 * research arguments.callee.caller
+		 * to see if it breaks the sandbox
+		 */
+		const sandbox_import = (imports, callback) => {
+			console.log('some shit just got imported');
+			for (let i = 0; i < imports.length; i++) {
+				this.addDependency(imports[i].url, sandbox.types.EXPORT_ES_MODULE)
+			}
+			this.on('dependencies_ready', () => {
+				const args = [];
+
+				for (let i = 0; i < this.dependencies.length; i++) {
+
+					// import "module-name";
+					if (!imports[i].obj) {
+						continue;
+					}
+
+					// import * as name from "module-name";
+					if (imports[i].obj.length === 0) {
+						args.push(this.dependencies[i].exports);
+						continue;
+					}
+
+					// import { member } from "module-name";
+					// import { member as alias } from "module-name";
+					// import { member1 , member2 } from "module-name";
+					// import { member1 , member2 as alias2 , [...] } from "module-name";
+					for (let j = 0; j < imports[i].obj.length; j++) {
+						// handle the case when the dependency is missing
+						args.push(this.dependencies[i].exports[imports[i].obj[j]]);
+					}
+				}
+				callback && callback(...args);
+
+				/**
+				 * no idea why this happens
+				 * discuss and fix this later
+				 */
+				setTimeout(() => {
+					this.emit('ready');
+				}, 1);
+
+			});
+			// if we dont have any dependencies just go ahead and fire the event
+			if (this.dependencies.length === 0) {
+				this.emit('dependencies_ready');
+			}
+
+		};
+
+		const joinedSource = ` 	(function(sandbox_import){
                                 const sandbox_exports = {};
 								${headers['window']};
 								${this.source};
 								return sandbox_exports;
-								}).bind(this.scope)()`;// + sourceMap;
-        //console.log(joinedSource);
-        this.exports = eval(joinedSource);
-    }
+								}).bind(this.scope)(sandbox_import)`;// + sourceMap;
+		//console.log(joinedSource);
+		this.exports = eval(joinedSource);
+	}
 }
+
+sandbox.types = {};
+sandbox.types.EXPORT_ES_MODULE = 0;
+sandbox.types.EXPORT_WINDOW_SCOPE = 1;
