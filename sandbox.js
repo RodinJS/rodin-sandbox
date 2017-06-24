@@ -80,12 +80,11 @@ class sandbox extends EventEmitter {
 
 	run() {
 
-		/**
-		 * research arguments.callee.caller
-		 * to see if it breaks the sandbox
-		 */
+		// research arguments.callee.caller
+		// to see if it breaks the sandbox
 		const sandbox_import = (imports, callback) => {
 			console.log('some shit just got imported');
+			// handle the case with duplicate imports however the standard says we should
 			for (let i = 0; i < imports.length; i++) {
 				this.addDependency(imports[i].url, sandbox.types.EXPORT_ES_MODULE)
 			}
@@ -116,10 +115,9 @@ class sandbox extends EventEmitter {
 				}
 				callback && callback(...args);
 
-				/**
-				 * no idea why this happens
-				 * discuss and fix this later
-				 */
+
+				// no idea why this happens
+				// discuss and fix this later
 				setTimeout(() => {
 					this.emit('ready');
 				}, 1);
