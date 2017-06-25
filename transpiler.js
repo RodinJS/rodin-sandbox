@@ -3,9 +3,9 @@ const transpileImports = (source) => {
 	const sandboxImport = [];
 	const allImportedNames = [];
 
-	const importRegex = /^import .{0,}("|').{1,}("|')(;|)$/gm;
+	const importRegex = /^import .{0,}("|').{1,}("|')(;|)/gm;
 	const insideCurlyBracketsRegex = /{.{1,}}/gm;
-	const fileNameRegex = /("|').{1,}("|');$/gm;
+	const fileNameRegex = /("|').{1,}("|')/gm;
 	const starAsNameRegex = /\*.{1,}(?=\sfrom)/gm;
 
 	const imports = source.match(importRegex);
@@ -27,6 +27,8 @@ const transpileImports = (source) => {
 				const localNames = [];
 
 				for (let j = 0; j < names.length; j++) {
+					// doing indexOf then split takes extra cpu
+					// do just indexof instead and then substr
 					if (names[j].indexOf(' as ') !== -1) {
 						const tmp = names[j].split('as');
 						names[j] = tmp[0].replace(/\s/g, '');
@@ -52,7 +54,7 @@ const transpileImports = (source) => {
 			let fileName = imports[i].match(fileNameRegex);
 			if (fileName[0]) {
 				fileName = fileName[0];
-				currentImport.url = fileName.substr(1, fileName.length - 3);
+				currentImport.url = fileName.substr(1, fileName.length - 2);
 			}
 			sandboxImport.push(currentImport);
 		}
@@ -68,10 +70,17 @@ const transpileImports = (source) => {
 		let cur = str.match(insideCurlyBracketsRegex);
 		if (!cur || !cur[0])
 			return str;
-		cur = cur[0].substr(1, cur[0].length - 2).replace(/\s/g, '').split(',');
+		cur = cur[0].substr(1, cur[0].length - 2).split(',');
+		//.replace(/\s/g, '')
 		let res = '';
 		for (let i = 0; i < cur.length; i++) {
-			res += `sandbox_exports.${cur[i]} = ${cur[i]}\n`;
+			if (cur[i].indexOf(' as ') !== -1) {
+				const tmp = cur[i].split(' as ');
+				res += `sandbox_exports.${tmp[1].replace(/\s/g, '')} = ${tmp[0].replace(/\s/g, '')}\n`;
+			} else {
+				cur[i] = cur[i].replace(/\s/g, '');
+				res += `sandbox_exports.${cur[i]} = ${cur[i]}\n`;
+			}
 		}
 		return res;
 	});

@@ -1,11 +1,9 @@
 import {camel_dependency as some_other_stuff, other_dependency} from 'test_import.js';
 import * as second_dependency from 'test_import2.js';
 
-sandbox_exports.camel = true;
 console.log('we are inside the app');
 console.log(some_other_stuff, other_dependency);
 
-console.log(sandbox_exports);
 console.log(second_dependency);
 
 
