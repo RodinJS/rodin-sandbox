@@ -4,26 +4,35 @@ const transpileImports = (source) => {
 	const allImportedNames = [];
 
 	const importRegex = /^import .{0,}("|').{1,}("|');$/gm;
-	const insideCurlyBrackets = /{.{1,}}/gm;
-
+	const insideCurlyBracketsRegex = /{.{1,}}/gm;
 	const fileNameRegex = /("|').{1,}("|');$/gm;
+	const starAsNameRegex = /\*.{1,}(?=\sfrom)/gm;
 
 	const imports = source.match(importRegex);
 
 	if (imports) {
 		for (let i = 0; i < imports.length; i++) {
+			imports[i] = imports[i].replace(/\s+/g, ' ');
 			const currentImport = {
 				url: '',
 				obj: []
 			};
-			let names = imports[i].match(insideCurlyBrackets);
-
 			//{camel_dependency, other_dependency}
-			if (names[0]) {
+
+			let names = imports[i].match(insideCurlyBracketsRegex);
+			if (names && names[0]) {
 				names = names[0];
 				names = names.substr(1, names.length - 2).replace(/\s/g, '').split(',');
 				currentImport.obj = names;
 				allImportedNames.push(...names);
+			}
+
+			// * as name
+			let name = imports[i].match(starAsNameRegex);
+			if (name && name[0]) {
+				name = name[0];
+				name = name.substr(5);
+				allImportedNames.push(name);
 			}
 
 			let fileName = imports[i].match(fileNameRegex);
