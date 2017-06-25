@@ -1,4 +1,4 @@
-const app = new sandbox('test2.js', sandbox.types.EXPORT_WINDOW_SCOPE);
+const app = new sandbox('test2.js', sandbox.types.EXPORT_WINDOW_SCOPE, {window_export: 132});
 app.on('ready', () => {
 	console.log(app.exports, app.scope);
 });

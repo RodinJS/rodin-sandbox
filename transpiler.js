@@ -3,7 +3,7 @@ const transpileImports = (source) => {
 	const sandboxImport = [];
 	const allImportedNames = [];
 
-	const importRegex = /^import .{0,}("|').{1,}("|')(;|)/gm;
+	const importRegex = /^import.{0,}("|').{1,}("|')(;|)/gm;
 	const insideCurlyBracketsRegex = /{.{1,}}/gm;
 	const fileNameRegex = /("|').{1,}("|')/gm;
 	const starAsNameRegex = /\*.{1,}(?=\sfrom)/gm;
@@ -64,8 +64,9 @@ const transpileImports = (source) => {
 
 	// EXPORTS
 
-	//export { name1, name2, …, nameN };
-	const exportCurlyBracketRegex = /export\s{1,}{.{1,}}/g;
+	// export { name1, name2, …, nameN };
+	// export { variable1 as name1, variable2 as name2, …, nameN };
+	const exportCurlyBracketRegex = /export\s{0,}{.{1,}}/g;
 	res = res.replace(exportCurlyBracketRegex, (str, index) => {
 		let cur = str.match(insideCurlyBracketsRegex);
 		if (!cur || !cur[0])

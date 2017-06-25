@@ -1,16 +1,15 @@
 const headers = {
 	window: `const document = {};
-			 document.createElement = ()=>{};
+			 document.createElement = ()=>{}
              const window = {document: document};
-             window.addEventListener = ()=>{};
-             const Function = ()=>{};
+             window.addEventListener = ()=>{}
+             const Function = ()=>{}
              Function.prototype={name: 'camel'};
              //const console = {};
-             //console.log = ()=>{};
-             //console.warn = ()=>{};
-             ;`,
-	sandbox: `const sandbox_import = ()=>{};
-                `
+             //console.log = ()=>{}
+             //console.warn = ()=>{}
+             `,
+	sandbox: `const sandbox_import = ()=>{}`
 
 };
 
@@ -135,12 +134,13 @@ class sandbox extends EventEmitter {
 
 		};
 
-		const joinedSource = ` 	(function(sandbox_import){
-                                const sandbox_exports = {};
-								${headers['window']};
-								${this.source};
-								return sandbox_exports;
-								}).bind(this.scope)(sandbox_import)`;// + sourceMap;
+		const joinedSource = ` 	
+		(function(sandbox_import, ${Object.keys(this.scope).join(', ')}){
+			const sandbox_exports = {};
+			${headers['window']};
+			${this.source};
+			return sandbox_exports;
+		})(sandbox_import, ${Object.keys(this.scope).map(i => `this.scope.${i}`).join(', ')})`;
 		//console.log(joinedSource);
 		this.exports = eval(joinedSource);
 	}
