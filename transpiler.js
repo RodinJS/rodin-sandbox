@@ -3,7 +3,7 @@ const transpileImports = (source) => {
 	const sandboxImport = [];
 	const allImportedNames = [];
 
-	const importRegex = /^import .{0,}("|').{1,}("|');$/gm;
+	const importRegex = /^import .{0,}("|').{1,}("|')(;|)$/gm;
 	const insideCurlyBracketsRegex = /{.{1,}}/gm;
 	const fileNameRegex = /("|').{1,}("|');$/gm;
 	const starAsNameRegex = /\*.{1,}(?=\sfrom)/gm;
@@ -46,12 +46,33 @@ const transpileImports = (source) => {
 
 	let res = source.replace(importRegex, '// $&');
 
+	// EXPORTS
+
+	//export { name1, name2, …, nameN };
+	const exportCurlyBracketRegex = /export\s{1,}{.{1,}}/g;
+	res = res.replace(exportCurlyBracketRegex, (str, index) => {
+		let cur = str.match(insideCurlyBracketsRegex);
+		if (!cur || !cur[0])
+			return str;
+		cur = cur[0].substr(1, cur[0].length - 2).replace(/\s/g, '').split(',');
+		let res = '';
+		for (let i = 0; i < cur.length; i++) {
+			res += `sandbox_exports.${cur[i]} = ${cur[i]}\n`;
+		}
+		return res;
+	});
+
+	//export let name1
+
+
 	res = `
 	sandbox_import(${JSON.stringify(sandboxImport)}
 	, function (${allImportedNames.join(', ')}) {
 	${res};
 	});`;
 	return res;
+
+
 };
 
 const stripComments = (source) => {
