@@ -36,7 +36,7 @@ class sandbox extends EventEmitter {
 			this.source = data;
 			this.emit('loaded');
 
-			//transpile
+			this.source = transpileImports(this.source);
 			this.emit('transpiled');
 
 			this.run();
@@ -83,8 +83,13 @@ class sandbox extends EventEmitter {
 		// research arguments.callee.caller
 		// to see if it breaks the sandbox
 		const sandbox_import = (imports, callback) => {
-			console.log('some shit just got imported');
 			// handle the case with duplicate imports however the standard says we should
+			// handle looped imports the way standard tells us to
+
+			if (imports.constructor !== Array) {
+				throw new Error('sandbox_import imports argument must be an array');
+			}
+
 			for (let i = 0; i < imports.length; i++) {
 				this.addDependency(imports[i].url, sandbox.types.EXPORT_ES_MODULE)
 			}
