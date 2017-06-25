@@ -17,14 +17,28 @@ const transpileImports = (source) => {
 				url: '',
 				obj: []
 			};
-			//{camel_dependency, other_dependency}
 
+			//{camel_dependency, other_dependency}
+			//{camel_dependency as some_other_stuff, other_dependency}
 			let names = imports[i].match(insideCurlyBracketsRegex);
 			if (names && names[0]) {
 				names = names[0];
-				names = names.substr(1, names.length - 2).replace(/\s/g, '').split(',');
+				names = names.substr(1, names.length - 2).split(',');
+				const localNames = [];
+
+				for (let j = 0; j < names.length; j++) {
+					if (names[j].indexOf(' as ') !== -1) {
+						const tmp = names[j].split('as');
+						names[j] = tmp[0].replace(/\s/g, '');
+						localNames.push(tmp[1].replace(/\s/g, ''));
+					}
+					else {
+						names[j] = names[j].replace(/\s/g, '');
+						localNames.push(names[j]);
+					}
+				}
 				currentImport.obj = names;
-				allImportedNames.push(...names);
+				allImportedNames.push(...localNames);
 			}
 
 			// * as name
