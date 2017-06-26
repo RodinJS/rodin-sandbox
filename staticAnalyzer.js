@@ -40,6 +40,16 @@ const findNeedles = (source, needles) => {
 	return needlePositions;
 };
 
+//debugging stuff
+
+const loadTHREEJS = (cb) => {
+	ajax.get('https://cdnjs.cloudflare.com/ajax/libs/three.js/86/three.js', {}, source => {
+		cb(source);
+	})
+};
+
+//end
+
 const reduce = (source, needles) => {
 	const reducedSourceArray = new Array(needles.length);
 	const reduceMap = [];
