@@ -12,14 +12,17 @@ const find = (source, needle, method = 'indexOf') => {
 	return res;
 };
 
-const commentNeedles = ['//', '\n', '/*', '*/'];
+const commentNeedles = ['//', '\n', '/*', '*/', '\'', '"', '`', '${', '}'];
 const scopeNeedles = ['{', '}'];
 
 
 const findComments = (source) => {
 	//(/\*([^*]|(\*+[^*/]))*\*+/)|(//.*)
 	//((?:\/\*(?:[^*]|(?:\*+[^*\/]))*\*+\/)|(?:\/\/.*))
-	const commentRegex = /((?:\/\*(?:[^*]|(?:\*+[^*\/]))*\*+\/)|(?:\/\/.*))/gm;
+	//const commentRegex = /((?:\/\*(?:[^*]|(?:\*+[^*\/]))*\*+\/)|(?:\/\/.*))/gm;
+
+
+    const commentRegex = /((?:\/\*(?:[^*]|(?:\*+[^*\/]))*\*+\/)|(?:\/\/.*)|(\'.*\')|(\".*\")|(\`.*[^\\]\$\{)|(\}.*\`)|(\`[^`]*\`))/gm;
 	const res = [];
 	// not efficient at all CHANGE THIS
 	source.replace(commentRegex, (...args) => {
@@ -42,10 +45,16 @@ const findNeedles = (source, needles) => {
 
 //debugging stuff
 
-const loadTHREEJS = (cb) => {
-	ajax.get('https://cdnjs.cloudflare.com/ajax/libs/three.js/86/three.js', {}, source => {
+const loadTHREEJS = (cb, isMin = false) => {
+	ajax.get(`https://cdnjs.cloudflare.com/ajax/libs/three.js/86/three${isMin?'.min':''}.js`, {}, source => {
 		cb(source);
 	})
+};
+
+const loadOtherJS = (cb) => {
+    ajax.get(`https://cdn.rodin.io/v0.0.7-dev/core/sculpt/Sculpt.js`, {}, source => {
+        cb(source);
+    })
 };
 
 //end
@@ -76,7 +85,6 @@ class StaticAnalyzer {
 		const needles = findNeedles(this.source, commentNeedles);
 
 		const [reducedSource, map] = reduce(this.source, needles);
-
 		const reducedNeedles = findComments(reducedSource);
 
 		this._comments = reducedNeedles.map(a => [map[a[0]], map[a[1] + 1] || this.source.length]);
