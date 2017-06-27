@@ -12,7 +12,9 @@ const find = (source, needle, method = 'indexOf') => {
 	return res;
 };
 
-const needles = ['//', '\n', '/*', '*/'];
+const commentNeedles = ['//', '\n', '/*', '*/'];
+const scopeNeedles = ['{', '}'];
+
 
 const findComments = (source) => {
 	//(/\*([^*]|(\*+[^*/]))*\*+/)|(//.*)
@@ -29,37 +31,63 @@ const findComments = (source) => {
 	return res;
 };
 
+const findNeedles = (source, needles) => {
+	const needlePositions = [];
+	for (let i = 0; i < needles.length; i++) {
+		needlePositions.push(... find(source, needles[i]));
+	}
+	needlePositions.sort((a, b) => a[0] - b[0]);
+	return needlePositions;
+};
+
+//debugging stuff
+
+const loadTHREEJS = (cb) => {
+	ajax.get('https://cdnjs.cloudflare.com/ajax/libs/three.js/86/three.js', {}, source => {
+		cb(source);
+	})
+};
+
+//end
+
+const reduce = (source, needles) => {
+	const reducedSourceArray = new Array(needles.length);
+	const reduceMap = [];
+
+	for (let i = 0; i < needles.length; i++) {
+		reducedSourceArray[i] = needles[i][1];
+		for (let j = 0; j < reducedSourceArray[i].length; j++) {
+			reduceMap.push(needles[i][0]);
+		}
+	}
+
+	const reducedSource = reducedSourceArray.join('');
+	return [reducedSource, reduceMap];
+};
+
 class StaticAnalyzer {
 	constructor(source) {
 		this.source = source;
-		const needlePositions = [];
-		for (let i = 0; i < needles.length; i++) {
-			needlePositions.push(... find(this.source, needles[i]));
-		}
-		needlePositions.sort((a, b) => a[0] - b[0]);
+		this._commentsAnalyzed = false;
 
-		const reducedSourceArray = new Array(needlePositions.length);
-		const reduceMap = [];
+	}
 
-		for (let i = 0; i < needlePositions.length; i++) {
-			reducedSourceArray[i] = needlePositions[i][1];
-			for (let j = 0; j < reducedSourceArray[i].length; j++) {
-				reduceMap.push(needlePositions[i][0]);
-			}
-		}
+	analyzeComments() {
+		const needles = findNeedles(this.source, commentNeedles);
 
-		const reducedSource = reducedSourceArray.join('');
-		const reducedComments = findComments(reducedSource);
+		const [reducedSource, map] = reduce(this.source, needles);
 
-		this._comments = reducedComments.map(a => [reduceMap[a[0]], reduceMap[a[1] + 1] || this.source.length]);
+		const reducedNeedles = findComments(reducedSource);
 
-		// console.log(reduceMap);
-		// console.log(reducedSource);
-		// console.log(reducedComments);
-		// console.log(this._comments);
+		this._comments = reducedNeedles.map(a => [map[a[0]], map[a[1] + 1] || this.source.length]);
+		this._commentsAnalyzed = true;
 	}
 
 	isComment(index) {
+		if (!this._commentsAnalyzed) {
+			// not analyzed
+			return -1;
+		}
 		// make this O(log(n)) with a set, maybe make it conditional even
 		for (let i = 0; i < this._comments.length; i++) {
 			if (this._comments[i][0] <= index && index <= this._comments[i][1]) {
