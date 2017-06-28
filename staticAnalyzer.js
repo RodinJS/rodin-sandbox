@@ -198,13 +198,14 @@ class StaticAnalyzer {
 						state = s.lookbehind;
 					}
 
-				case s.lookbehind:
+				case s.lookbehind: // checks if / is preceded with stuff for regexes
 					let j = i - 2;
-					while (j >= 0 && this.source.charCodeAt(j) === 32) {
+					while (j >= 0 && (this.source.charCodeAt(j) === 32 || this.source.charCodeAt(j) === 10)) {
 						j--;
 					}
 					if (j < 0) {
 						state = s.afterSlash;
+						break;
 					}
 
 					if (behindChars.indexOf(this.source.charAt(j)) === -1) {
@@ -222,6 +223,7 @@ class StaticAnalyzer {
 					}
 
 					if (cur === '\n') {
+						i = start - 1;
 						state = s.anything;
 					}
 					break;
@@ -237,6 +239,8 @@ class StaticAnalyzer {
 						state = s.end;
 					}
 					if (cur === '\n') {
+						// not sure about this
+						i = start - 2;
 						state = s.anything;
 					}
 
@@ -247,6 +251,8 @@ class StaticAnalyzer {
 						state = s.end;
 					}
 					if (cur === '\n') {
+						// not sure about this
+						i = start - 2;
 						state = s.anything;
 					}
 

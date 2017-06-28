@@ -4,8 +4,8 @@ const runStuff = () => {
 	let source = '';
 
 
-	//ajax.get('tmp.js', {}, data => {
-	loadTHREEJS(data => {
+	ajax.get('tmp.js', {}, data => {
+	//loadTHREEJS(data => {
 	//loadOtherJS(data => {
 		const res = [];
 		source = data;
