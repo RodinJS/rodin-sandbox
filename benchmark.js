@@ -4,8 +4,8 @@ const runStuff = () => {
 	let source = '';
 
 
-	ajax.get('tmp.js', {}, data => {
-	//loadTHREEJS(data => {
+    //ajax.get('tmp.js', {}, data => {
+	loadTHREEJS(data => {
 	//loadOtherJS(data => {
 		const res = [];
 		source = data;
@@ -39,7 +39,7 @@ const runStuff = () => {
 		console.log(res.join('\n'));
 		//alert(res.join('\n'));
 		window.a = a;
-	}, true);
+	}, false);
 
 };
 

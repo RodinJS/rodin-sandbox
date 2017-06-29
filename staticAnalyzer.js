@@ -136,7 +136,7 @@ class StaticAnalyzer {
 		// then stumble upon \n in the end of the line
 		// dismiss the regex, and lose // comment in the middle
 
-		const behindChars = ['=', '+', '-', '/', '*', '%', '(', ')', ';', ':', '{', '}', '\n', '\r', ','];
+		const behindChars = ['=', '+', '-', '/', '*', '%', '('/*, ')'*/, ';', ':', '{', '}', '\n', '\r', ','];
 		const forwardChars = ['+'];
 
 		let state = 0;
@@ -152,7 +152,7 @@ class StaticAnalyzer {
 			singleQuoteString: 5,
 			doubleQuoteString: 6,
 			singleLineComment: 7,
-			multiLineComment: 8,
+			multiLineComment: 8
 		};
 		const length = this.source.length;
 		let i = 0;
@@ -229,7 +229,7 @@ class StaticAnalyzer {
 					break;
 				case s.end:
 					// check forward;
-					//res.push(this.source.substring(start - 1, i));
+					// res.push(this.source.substring(start - 1, i));
 					res.push([start - 1, i]);
 					state = s.anything;
 					break;
@@ -273,6 +273,7 @@ class StaticAnalyzer {
 			i++;
 		}
 
+		console.log(res);
 		this._commentsAndStrings = res;
 		this._commentsAndStringsAnalyzed = true;
 
