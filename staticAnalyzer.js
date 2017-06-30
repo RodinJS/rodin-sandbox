@@ -21,7 +21,7 @@ const binarySearch = (intervals, index) => {
     let mid = NaN;
     while (low <= high) {
         mid = Math.floor((low + high) / 2);
-        if (intervals[mid][0] <= index && index <= intervals[mid][1]) return mid;
+        if (intervals[mid][0] <= index && index < intervals[mid][1]) return mid;
         else if (intervals[mid][1] < index) low = mid + 1;
         else high = mid - 1;
     }
@@ -148,156 +148,170 @@ class StaticAnalyzer {
         // then stumble upon \n in the end of the line
         // dismiss the regex, and lose // comment in the middle
 
-        const behindChars = ['=', '+', '-', '/', '*', '%', '('/*, ')'*/, ';', ':', '{', '}', '\n', '\r', ','];
-        const forwardChars = ['+'];
-
-        let state = 0;
-        let start = null;
         const res = [];
-
         const instances = [];
+
         const s = {
             anything: 0,
-            slash: 1,
-            afterSlash: 2,
-            lookbehind: 3,
-            end: 4,
-            singleQuoteString: 5,
-            doubleQuoteString: 6,
-            singleLineComment: 7,
-            multiLineComment: 8
+            afterSlash: 1,
+            string: 2,
+            literalStringStart: 3,
+            comment: 4,
+            multilineComment: 5,
+            regex: 6,
+            literalStringEnd: 7
         };
+
+        const charsBeforeRegex = ['=', '+', '-', '/', '*', '%', '(', ')', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^'];
+        const charsAfterRegex = ['=', '+', '-', '/', '*', '%', ')', ']', ';', ',', '}'];
+
+        const wordsBeforeRegex = ['return', 'yield'];
+
         const length = this.source.length;
         let i = 0;
+        let state = s.anything;
+        let stringType = '"'.charCodeAt(0);
+        let inLiteralString = false;
 
-        const singleQuote = "'";
-        const doubleQuote = '"';
+        let start = null;
 
-        const saveResult = () => {
+        const regexPrefixCheck = () => {
+            let j = i - 2;
+            while (j >= 0 && (this.source.charCodeAt(j) === 32 || this.source.charCodeAt(j) === 10)) {
+                j--;
+            }
+            if (j < 0) {
+                return true;
+            }
 
-            instances.push(this.source.substring(start - 1, i + 1));
-            res.push([start - 1, i + 1]);
-            state = s.anything;
+            if (charsBeforeRegex.indexOf(this.source.charAt(j)) === -1) {
+
+                for (let g = 0; g < wordsBeforeRegex.length; g++) {
+                    let m = 0;
+                    const len = wordsBeforeRegex.length;
+                    const cur = wordsBeforeRegex[g];
+                    const curWordLen = wordsBeforeRegex[g].length;
+                    while (m < curWordLen && cur.charCodeAt(curWordLen - m - 1) === this.source.charCodeAt(j - m)) {
+                        m++;
+                    }
+                    if (m == curWordLen)
+                        return true;
+                }
+
+                return false;
+            }
+            return true;
         };
 
-        // when doing i++ we need to update also cur;
-        while (i < length) {
-            const cur = this.source.charAt(i);
+        const regexSuffixCheck = () => {
+            let j = i + 1;
+            while (j < length && (this.source.charCodeAt(j) === 32 || this.source.charCodeAt(j) === 10)) {
+                j++;
+            }
 
+            if (charsAfterRegex.indexOf(this.source.charAt(j)) === -1) {
+                return false;
+            }
+            return true;
+        };
+
+        const saveResult = (end = i) => {
+            instances.push(this.source.substring(start, end + 1));
+            res.push([start, end + 1]);
+        };
+
+        while (i < length) {
+            const cur = this.source.charCodeAt(i);
 
             switch (state) {
-                case s.anything: // anything
-                    if (cur === '/') {
-                        start = i + 1;
-                        state = s.slash;
-                    }
-                    if (cur === singleQuote) {
-                        start = i + 1;
-                        state = s.singleQuoteString;
-                    }
-                    if (cur === doubleQuote) {
-                        start = i + 1;
-                        state = s.doubleQuoteString;
+                case s.anything:
+                    start = i;
+                    if (cur === '/'.charCodeAt(0)) {
+                        state = s.afterSlash;
+                    } else if (cur === '"'.charCodeAt(0) || cur === '\''.charCodeAt(0)) {
+                        state = s.string;
+                        stringType = cur;
+                    } else if (cur === '`'.charCodeAt(0)) {
+                        state = s.literalStringStart;
+                    } else if (inLiteralString && cur === '}'.charCodeAt(0)) {
+                        state = s.literalStringEnd;
+                        inLiteralString = false;
                     }
 
                     break;
-                case s.slash: // single /
-                    if (cur === '/') {
-                        state = s.singleLineComment;
-                        break;
-                    }
-                    if (cur === '*') {
-                        state = s.multiLineComment;
-                        break;
-                    }
-                    else {
-                        state = s.lookbehind;
-                    }
-
-                case s.lookbehind: // checks if / is preceded with stuff for regexes
-                    let j = i - 2;
-                    while (j >= 0 && (this.source.charCodeAt(j) === 32 || this.source.charCodeAt(j) === 10)) {
-                        j--;
-                    }
-                    if (j < 0) {
-                        state = s.afterSlash;
-                        break;
-                    }
-
-                    if (behindChars.indexOf(this.source.charAt(j)) === -1) {
-                        state = s.anything;
+                case s.afterSlash:
+                    if (cur === '/'.charCodeAt(0)) {
+                        state = s.comment;
+                    } else if (cur === '*'.charCodeAt(0)) {
+                        state = s.multilineComment;
+                    } else if (regexPrefixCheck()) {
+                        if (cur === '\\'.charCodeAt(0)) {
+                            i++;
+                        }
+                        state = s.regex;
                     } else {
-                        state = s.afterSlash;
-                    }
-
-
-                    break;
-                case s.afterSlash: // anything after /
-                    // escaped characters
-                    if (cur === '\\') {
-                        i += 2;
-                        continue;
-                    }
-                    if (cur === '/') {
-                        saveResult();
-                    }
-
-                    if (cur === '\n') {
-                        i = start - 1;
                         state = s.anything;
                     }
                     break;
-
-                case s.singleQuoteString:
-                    // escaped characters
-                    if (cur === '\\') {
-                        i += 2;
-                        continue;
-                    }
-
-                    if (cur === singleQuote) {
+                case s.comment:
+                    if (cur === '\n'.charCodeAt(0) || i === length - 1) {
                         saveResult();
-                    }
-                    if (cur === '\n') {
-                        // not sure about this
-                        i = start - 2;
                         state = s.anything;
                     }
-
                     break;
-
-                case s.doubleQuoteString:
-                    // escaped characters
-                    if (cur === '\\') {
-                        i += 2;
-                        continue;
-                    }
-
-                    if (cur === doubleQuote) {
-                        saveResult();
-                    }
-                    if (cur === '\n') {
-                        // not sure about this
-                        // i = start - 2;
-                        console.log('double quote', i);
+                case s.multilineComment:
+                    if (cur === '*'.charCodeAt(0) && this.source.charCodeAt(i + 1) === '/'.charCodeAt(0)) {
+                        i++;
+                        saveResult(i);
                         state = s.anything;
                     }
-
                     break;
-                case s.singleLineComment:
-                    if (cur === '\n') {
-                        saveResult();
+                case s.regex:
+                    if (cur === '\\'.charCodeAt(0)) {
+                        i++;
+                    } else if (cur === '\n'.charCodeAt(0)) {
+                        state = s.anything;
+                        i = start;
+                    } else if (cur === '/'.charCodeAt(0)) {
+                        if (regexSuffixCheck()) {
+                            saveResult();
+                        }
+                        else {
+                            i = start;
+                        }
+                        state = s.anything;
                     }
                     break;
-
-                case s.multiLineComment:
-                    if (cur === '*' && this.source.charAt(i + 1) === '/') {
-                        ++i;
+                case s.string:
+                    if (cur === '\\'.charCodeAt(0)) {
+                        i++;
+                    } else if (cur === stringType) {
                         saveResult();
+                        state = s.anything;
+                    }
+                    break;
+                case s.literalStringStart:
+                    if (cur === '\\'.charCodeAt(0)) {
+                        i++;
+                    } else if (cur === '$'.charCodeAt(0) && this.source.charCodeAt(i + 1) === '{'.charCodeAt(0)) {
+                        i++;
+                        saveResult();
+                        state = s.anything;
+                        inLiteralString = true;
+                    } else if (cur === '`'.charCodeAt(0)) {
+                        saveResult();
+                        state = s.anything;
+                    }
+                    break;
+                case s.literalStringEnd:
+                    if (cur === '\\'.charCodeAt(0)) {
+                        i++;
+                    } else if (cur === '`'.charCodeAt(0)) {
+                        saveResult();
+                        state = s.anything;
                     }
                     break;
             }
-
             i++;
         }
 

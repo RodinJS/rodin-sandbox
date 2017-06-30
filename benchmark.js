@@ -3,12 +3,12 @@ const allRes = [];
 const runStuff = () => {
     let source = '';
 
-
-    // ajax.get('tmp.js', {}, data => {
-    loadTHREEJS(data => {
-        // loadJQUERY(data => {
-        // loadD3(data => {
-        // loadOtherJS(data => {
+    // ajax.get('https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.7/ace.js', {}, data => {
+    ajax.get('tmp.js', {}, data => {
+    // loadTHREEJS(data => {
+    // loadJQUERY(data => {
+    // loadD3(data => {
+    // loadOtherJS(data => {
         const res = [];
         source = data;
         console.log(source.length);
@@ -41,7 +41,7 @@ const runStuff = () => {
         console.log(res.join('\n'));
         //alert(res.join('\n'));
         window.a = a;
-    }, true);
+    }, false);
 
 };
 

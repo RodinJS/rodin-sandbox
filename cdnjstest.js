@@ -51,10 +51,11 @@ const startTest = () => {
     ajax.get('https://api.cdnjs.com/libraries', {}, data => {
         data = JSON.parse(data);
         const total = data.total;
+        let okCount = 0;
 
         let i = 0;
         const _runTest = () => {
-            if(!isJS(data.results[i].latest)) {
+            if (!isJS(data.results[i].latest)) {
                 i++;
                 return _runTest();
             }
@@ -66,8 +67,13 @@ const startTest = () => {
                     res['length'], res['openingBracketCount'],
                     res['closingBracketCount'],
                     res['evalError'] || 'ok');
+
+                if (!res['evalError']) {
+                    okCount++;
+                }
+                document.getElementById('status').innerText = `${okCount} / ${i}, ${parseInt(okCount / i * 1000) / 10}%`;
                 i++;
-                if (i < 10) {
+                if (i < total) {
                     _runTest();
                 }
             });
