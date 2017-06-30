@@ -64,6 +64,18 @@ const loadTHREEJS = (cb, isMin = false) => {
     })
 };
 
+const loadJQUERY = (cb, isMin = false) => {
+    ajax.get(`https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery${isMin ? '.min' : ''}.js`, {}, source => {
+        cb(source);
+    })
+};
+
+const loadD3 = (cb, isMin = false) => {
+    ajax.get(`https://cdnjs.cloudflare.com/ajax/libs/d3/4.9.1/d3${isMin ? '.min' : ''}.js`, {}, source => {
+        cb(source);
+    })
+};
+
 const loadOtherJS = (cb) => {
     ajax.get(`https://cdn.rodin.io/v0.0.7-dev/core/sculpt/Sculpt.js`, {}, source => {
         cb(source);
@@ -143,6 +155,7 @@ class StaticAnalyzer {
         let start = null;
         const res = [];
 
+        const instances = [];
         const s = {
             anything: 0,
             slash: 1,
@@ -160,10 +173,16 @@ class StaticAnalyzer {
         const singleQuote = "'";
         const doubleQuote = '"';
 
+        const saveResult = () => {
+
+            instances.push(this.source.substring(start - 1, i + 1));
+            res.push([start - 1, i + 1]);
+            state = s.anything;
+        };
+
         // when doing i++ we need to update also cur;
         while (i < length) {
             const cur = this.source.charAt(i);
-
 
 
             switch (state) {
@@ -220,19 +239,13 @@ class StaticAnalyzer {
                         continue;
                     }
                     if (cur === '/') {
-                        state = s.end;
+                        saveResult();
                     }
 
                     if (cur === '\n') {
                         i = start - 1;
                         state = s.anything;
                     }
-                    break;
-                case s.end:
-                    // check forward;
-                    // res.push(this.source.substring(start - 1, i));
-                    res.push([start - 1, i]);
-                    state = s.anything;
                     break;
 
                 case s.singleQuoteString:
@@ -243,7 +256,7 @@ class StaticAnalyzer {
                     }
 
                     if (cur === singleQuote) {
-                        state = s.end;
+                        saveResult();
                     }
                     if (cur === '\n') {
                         // not sure about this
@@ -261,24 +274,26 @@ class StaticAnalyzer {
                     }
 
                     if (cur === doubleQuote) {
-                        state = s.end;
+                        saveResult();
                     }
                     if (cur === '\n') {
                         // not sure about this
-                        i = start - 2;
+                        // i = start - 2;
+                        console.log('double quote', i);
                         state = s.anything;
                     }
 
                     break;
                 case s.singleLineComment:
                     if (cur === '\n') {
-                        state = s.end;
+                        saveResult();
                     }
                     break;
 
                 case s.multiLineComment:
-                    if (cur === '*' && this.source.charAt(++i) === '/') {
-                        state = s.end;
+                    if (cur === '*' && this.source.charAt(i + 1) === '/') {
+                        ++i;
+                        saveResult();
                     }
                     break;
             }
@@ -287,6 +302,7 @@ class StaticAnalyzer {
         }
 
         console.log(res);
+        console.log(instances);
         this._commentsAndStrings = res;
         this._commentsAndStringsAnalyzed = true;
 
