@@ -9,9 +9,34 @@
     <script src="staticAnalyzer.js"></script>
     <script src="sandbox.js"></script>
     <script src="benchmark.js"></script>
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
 </head>
 <body>
 <script src="app.js"></script>
 <!--<script src="importer.js" import="./test2.js"></script>-->
+
+<div class="container">
+    <div class="row">
+        <button class="btn btn-submit" id="start"> Start </button>
+        <span id="status"> status </span>
+    </div>
+    <div class="row">
+        <table class="table" id="table">
+            <tr>
+                <td>Name</td>
+                <td>URL</td>
+                <td>Length</td>
+                <td>Open</td>
+                <td>close</td>
+                <td>Status</td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+
+<script src="cdnjstest.js"></script>
 </body>
 </html>
+
