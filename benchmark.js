@@ -1,5 +1,7 @@
 const allRes = [];
-
+document.addEventListener("DOMContentLoaded", (event) => {
+    runStuff();
+});
 const runStuff = () => {
     let source = '';
 
@@ -33,10 +35,10 @@ const runStuff = () => {
         //     res.push(`Checking ${count} elements takes: ${Date.now() - t}`);
         //     count *= 10;
         // }
-
-        t = Date.now();
-        a.analyzeScopes();
-        res.push(`Analysing scopes takes: ${Date.now() - t}`);
+        //
+        // t = Date.now();
+        // a.analyzeScopes();
+        // res.push(`Analysing scopes takes: ${Date.now() - t}`);
 
         console.log(res.join('\n'));
         a.visualizeCode(document.getElementById('codeVisualization'));
@@ -45,5 +47,3 @@ const runStuff = () => {
     }, false);
 
 };
-
-setTimeout(runStuff, 2000);

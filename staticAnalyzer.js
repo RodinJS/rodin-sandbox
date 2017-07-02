@@ -152,6 +152,7 @@ class StaticAnalyzer {
 
         const res = [];
         const instances = [];
+        const scopes = [];
 
         const s = {
             anything: 0,
@@ -176,6 +177,7 @@ class StaticAnalyzer {
         let inLiteralString = false;
 
         let start = null;
+        let scopeStart = null;
 
         const regexPrefixCheck = () => {
             let j = i - 2;
@@ -219,6 +221,10 @@ class StaticAnalyzer {
             return true;
         };
 
+        const saveScope = (end = i) => {
+            scopes.push([scopeStart, end]);
+        };
+
         const saveResult = (end = i) => {
             instances.push(this.source.substring(start, end + 1));
             res.push([start, end + 1]);
@@ -240,6 +246,10 @@ class StaticAnalyzer {
                     } else if (inLiteralString && cur === '}'.charCodeAt(0)) {
                         state = s.literalString;
                         inLiteralString = false;
+                    } else if (cur === '{'.charCodeAt(0)) {
+                        scopeStart = i;
+                    } else if (cur === '}'.charCodeAt(0)) {
+                        saveScope();
                     }
 
                     break;
@@ -329,7 +339,7 @@ class StaticAnalyzer {
         console.log(instances);
         this._commentsAndStrings = res;
         this._commentsAndStringsAnalyzed = true;
-
+        this._scopes = scopes;
         //return res;
     }
 
@@ -356,6 +366,10 @@ class StaticAnalyzer {
     visualizeCode(container) {
         const cur = this.source;
         let res = '';
+        const scopes = [];
+        for (let i = 0; i < this._scopes.length; i++) {
+            scopes.push(...this._scopes[i]);
+        }
 
         for (let i = 0; i < cur.length; i++) {
             let c = cur.charAt(i).replace('<', "&lt;").replace('>', "&gt;");
@@ -364,7 +378,7 @@ class StaticAnalyzer {
                 c = `<u><b>${c}</b></u>`;
             }
 
-            if (this.scopes.indexOf(i) !== -1) {
+            if (scopes.indexOf(i) !== -1) {
                 c = `<mark>${c}</mark>`;
             }
 
