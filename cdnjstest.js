@@ -1,131 +1,135 @@
 const runTest = (url, callback) => {
-	let source = '';
+    let source = '';
 
-	ajax.get(url, {}, data => {
-		const res = {};
-		source = data;
-		let a = new StaticAnalyzer(source);
-		let t = null;
+    ajax.get(url, {}, data => {
+        const res = {};
+        source = data;
+        let a = new StaticAnalyzer(source);
+        let t = null;
 
-		res['length'] = data.length;
+        res['length'] = data.length;
 
-		t = Date.now();
-		a.analyzeCommentsAndStrings();
-		res['commentAnalysis'] = Date.now() - t;
+        t = Date.now();
+        a.analyzeCommentsAndStrings();
+        res['commentAnalysis'] = Date.now() - t;
 
-		t = Date.now();
-		a.analyzeScopes();
-		res['scopeAnalysis'] = Date.now() - t;
+        t = Date.now();
+        a.analyzeScopes();
+        res['scopeAnalysis'] = Date.now() - t;
 
-		const str = needles.map(a => a[1]).join('');
+        const str = needles.map(a => a[1]).join('');
 
-		res['openingBracketCount'] = find(str, '{').length;
-		res['closingBracketCount'] = find(str, '}').length;
+        res['openingBracketCount'] = find(str, '{').length;
+        res['closingBracketCount'] = find(str, '}').length;
 
-		try {
-			eval(str);
-		} catch (err) {
-			res['evalError'] = err;
-		}
+        try {
+            eval(str);
+        } catch (err) {
+            res['evalError'] = err;
+        }
 
-		callback(res);
+        callback(res);
 
-	}, true);
+    }, true);
 
 };
 
 
 const initTest = () => {
-	const table = document.getElementById('table');
-	const jTable = $('#table').DataTable({
-		"responsive": true,
-		data: []
-	});
+    const table = document.getElementById('table');
+    const jTable = $('#table').DataTable({
+        "responsive": true,
+        data: []
+    });
 
 
-	const addRow = (...args) => {
-		//table.innerHTML += `<tr> ${ args.map(i => "<td>" + i + "</td>").join("") } </tr>`;
-		jTable.row.add(args).draw();
-	};
+    const addRow = (...args) => {
+        //table.innerHTML += `<tr> ${ args.map(i => "<td>" + i + "</td>").join("") } </tr>`;
+        jTable.row.add(args).draw();
+    };
 
-	const setStatus = (curr, total) => {
-		document.getElementById('status').innerHTML = `Tested ${ curr } of ${total}`;
-	};
+    const setStatus = (curr, total) => {
+        document.getElementById('status').innerHTML = `Tested ${ curr } of ${total}`;
+    };
 
-	const isJS = (url) => url.endsWith('.js');
-	let isRunning = false;
+    const isJS = (url) => url.endsWith('.js');
+    let isRunning = false;
 
-	let total = null;
-	let data = null;
+    let total = null;
+    let data = null;
 
-	const loadFileNames = () => {
-		ajax.get('https://api.cdnjs.com/libraries', {}, d => {
-			data = JSON.parse(d);
-			total = data.total;
-			if (isRunning) {
-				testAll();
-			}
-		});
-	};
-
-
-	document.getElementById('start').addEventListener('click', () => {
-		isRunning = !isRunning;
-		if (isRunning)
-			document.getElementById('start').innerText = 'Pause';
-		else
-			document.getElementById('start').innerText = 'Resume';
-		if (!isRunning)
-			return;
+    const loadFileNames = () => {
+        ajax.get('https://api.cdnjs.com/libraries', {}, d => {
+            data = JSON.parse(d);
+            total = data.total;
+            if (isRunning) {
+                testAll();
+            }
+        });
+    };
 
 
-		if (total) {
-			testAll();
-		}
-		else {
-			loadFileNames();
-		}
-
-	});
-
-	let okCount = 0;
-	let i = 0;
-
-	const testAll = () => {
-		if (total === null)
-			return;
+    document.getElementById('start').addEventListener('click', () => {
+        isRunning = !isRunning;
+        if (isRunning)
+            document.getElementById('start').innerText = 'Pause';
+        else
+            document.getElementById('start').innerText = 'Resume';
+        if (!isRunning)
+            return;
 
 
-		const _runTest = () => {
-			if (!isJS(data.results[i].latest)) {
-				i++;
-				return _runTest();
-			}
+        if (total) {
+            testAll();
+        }
+        else {
+            loadFileNames();
+        }
 
-			runTest(data.results[i].latest, (res) => {
+    });
 
-				addRow(data.results[i].name,
-					data.results[i].latest,
-					res['length'], res['openingBracketCount'],
-					res['closingBracketCount'],
-					res['evalError'] || 'ok');
+    let okCount = 0;
+    let i = 0;
+    let allCount = 0;
 
-				if (!res['evalError']) {
-					okCount++;
-				}
-				document.getElementById('status').innerText = `${okCount} / ${i}, ${parseInt(okCount / i * 1000) / 10}%`;
-				i++;
-				if (i < total && isRunning) {
-					_runTest();
-				}
-			});
-		};
+    const testAll = () => {
+        if (total === null)
+            return;
 
 
-		_runTest();
-		window.data = data;
+        const _runTest = () => {
+            if (!isJS(data.results[i].latest)) {
+                i++;
+                return _runTest();
+            }
 
-	}
+            runTest(data.results[i].latest, (res) => {
+
+                addRow(data.results[i].name,
+                    data.results[i].latest,
+                    res['length'], res['openingBracketCount'],
+                    res['closingBracketCount'],
+                    res['evalError'] || 'ok');
+
+                if (!res['evalError']) {
+                    okCount++;
+                }
+                i++;
+                allCount++;
+                document.getElementById('status').innerText = `${okCount} / ${allCount}, ${parseInt(okCount / allCount * 1000) / 10}%`;
+                if (i < total && isRunning) {
+                    _runTest();
+                }
+
+
+            });
+        };
+
+
+        _runTest();
+        window.data = data;
+
+    }
 
 };
 

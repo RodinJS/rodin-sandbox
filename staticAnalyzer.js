@@ -128,6 +128,8 @@ class StaticAnalyzer {
 
         window.allNeedles = allNeedles;
         window.needles = needles;
+
+        this.scopes = needles.map(a => a[0]);
     }
 
     analyzeCommentsAndStrings() {
@@ -158,10 +160,11 @@ class StaticAnalyzer {
             literalString: 3,
             comment: 4,
             multilineComment: 5,
-            regex: 6
+            regex: 6,
+            squareBracketsRegex: 7
         };
 
-        const charsBeforeRegex = ['=', '+', '-', '/', '*', '%', '(', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^'];
+        const charsBeforeRegex = ['=', '+', '-', '/', '*', '%', '(', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?'];
         const charsAfterRegex = ['=', '+', '-', '/', '*', '%', ')', ']', ';', ',', '}'];
 
         const wordsBeforeRegex = ['return', 'yield'];
@@ -268,11 +271,17 @@ class StaticAnalyzer {
                     }
                     break;
                 case s.regex:
+
+                    // \/[^/]+@[^/]+
+                    // doesnt work becuase of / in the middle
+
                     if (cur === '\\'.charCodeAt(0)) {
                         i++;
                     } else if (cur === '\n'.charCodeAt(0)) {
                         state = s.anything;
                         i = start;
+                    } else if (cur === '['.charCodeAt(0)) {
+                        state = s.squareBracketsRegex;
                     } else if (cur === '/'.charCodeAt(0)) {
                         // if (regexSuffixCheck()) {
                         //     saveResult();
@@ -282,6 +291,13 @@ class StaticAnalyzer {
                         // }
                         saveResult();
                         state = s.anything;
+                    }
+                    break;
+                case s.squareBracketsRegex:
+                    if (cur === '\\'.charCodeAt(0)) {
+                        i++;
+                    } else if (cur === ']'.charCodeAt(0)) {
+                        state = s.regex;
                     }
                     break;
                 case s.string:
@@ -325,9 +341,9 @@ class StaticAnalyzer {
 
         // make this O(log(n)) with a set, maybe make it conditional even
         for (let i = 0; i < this._commentsAndStrings.length; i++) {
-        	if (this._commentsAndStrings[i][0] <= index && index < this._commentsAndStrings[i][1]) {
-        		return true;
-        	}
+            if (this._commentsAndStrings[i][0] <= index && index < this._commentsAndStrings[i][1]) {
+                return true;
+            }
         }
         return false;
 
@@ -342,12 +358,18 @@ class StaticAnalyzer {
         let res = '';
 
         for (let i = 0; i < cur.length; i++) {
+            let c = cur.charAt(i).replace('<', "&lt;").replace('>', "&gt;");
+
             if (this.isCommentOrString(i)) {
-                res += `<u><b>${cur.charAt(i)}</b></u>`;
+                c = `<u><b>${c}</b></u>`;
             }
-            else {
-                res += cur.charAt(i);
+
+            if (this.scopes.indexOf(i) !== -1) {
+                c = `<mark>${c}</mark>`;
             }
+
+            res += c;
+
         }
 
         container.innerHTML = res.replace(/\n/g, '<br>').replace(/\s/g, '&nbsp;');
