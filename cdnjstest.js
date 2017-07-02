@@ -100,7 +100,7 @@ const initTest = () => {
         const _runTest = () => {
             if (!isJS(data.results[i].latest)) {
                 i++;
-                return _runTest();
+                return setTimeout(_runTest, 5);
             }
 
             runTest(data.results[i].latest, (res) => {
@@ -118,7 +118,7 @@ const initTest = () => {
                 allCount++;
                 document.getElementById('status').innerText = `${okCount} / ${allCount}, ${parseInt(okCount / allCount * 1000) / 10}%`;
                 if (i < total && isRunning) {
-                    _runTest();
+                    setTimeout(_runTest, 5);
                 }
 
 
