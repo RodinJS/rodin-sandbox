@@ -323,15 +323,34 @@ class StaticAnalyzer {
             return false;
         }
 
-        // // make this O(log(n)) with a set, maybe make it conditional even
-        // for (let i = 0; i < this._commentsAndStrings.length; i++) {
-        // 	if (this._commentsAndStrings[i][0] <= index && index <= this._commentsAndStrings[i][1]) {
-        // 		return true;
-        // 	}
-        // }
-        // return false;
+        // make this O(log(n)) with a set, maybe make it conditional even
+        for (let i = 0; i < this._commentsAndStrings.length; i++) {
+            if (this._commentsAndStrings[i][0] <= index && index < this._commentsAndStrings[i][1]) {
+                return true;
+            }
+        }
+        return false;
 
         return binarySearch(this._commentsAndStrings, index) !== -1;
+    }
+
+
+    // helper functions
+
+    visualizeCode(container) {
+        const cur = this.source;
+        let res = '';
+
+        for (let i = 0; i < cur.length; i++) {
+            if (this.isCommentOrString(i)) {
+                res += `<u><b>${cur.charAt(i)}</b></u>`;
+            }
+            else {
+                res += cur.charAt(i);
+            }
+        }
+
+        container.innerHTML = res.replace(/\n/g, '<br>').replace(/\s/g, '&nbsp;');
     }
 }
 
