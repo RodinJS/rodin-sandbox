@@ -202,6 +202,14 @@ class StaticAnalyzer {
                 return true;
             }
 
+            if (this.source.charAt(j) === '+' && this.source.charAt(j - 1) === '+') {
+                return false;
+            }
+
+            if (this.source.charAt(j) === '-' && this.source.charAt(j - 1) === '-') {
+                return false;
+            }
+
             if (charsBeforeRegex.indexOf(this.source.charAt(j)) === -1) {
 
                 // probably not very efficient
