@@ -12,12 +12,12 @@ const runTest = (url, callback) => {
         t = Date.now();
         a.analyzeCommentsAndStrings();
         res['commentAnalysis'] = Date.now() - t;
+        //
+        // t = Date.now();
+        // a.analyzeScopes();
+        // res['scopeAnalysis'] = Date.now() - t;
 
-        t = Date.now();
-        a.analyzeScopes();
-        res['scopeAnalysis'] = Date.now() - t;
-
-        const str = needles.map(a => a[1]).join('');
+        const str = a._scopes.map(a => a[1]).join('');
 
         res['openingBracketCount'] = find(str, '{').length;
         res['closingBracketCount'] = find(str, '}').length;

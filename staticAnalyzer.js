@@ -168,7 +168,7 @@ class StaticAnalyzer {
         const charsBeforeRegex = ['=', '+', '-', '/', '*', '%', '(', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?'];
         const charsAfterRegex = ['=', '+', '-', '/', '*', '%', ')', ']', ';', ',', '}'];
 
-        const wordsBeforeRegex = ['return', 'yield'];
+        const wordsBeforeRegex = ['return', 'yield', 'typeof'];
 
         const length = this.source.length;
         let i = 0;
@@ -179,11 +179,22 @@ class StaticAnalyzer {
         let start = null;
         let scopeStart = null;
 
-        const regexPrefixCheck = () => {
-            let j = i - 2;
-            while (j >= 0 && (this.source.charCodeAt(j) === 32 || this.source.charCodeAt(j) === 10)) {
+        const skipNonCode = (j) => {
+            let resI = res.length - 1;
+            while (j >= 0 && (this.source.charCodeAt(j) === 32 || this.source.charCodeAt(j) === 10 ||
+            (resI >= 0 && res[resI][0] < j && res[resI][1] > j))) {
                 j--;
+                if (resI >= 0 && res[resI][0] < j && res[resI][1] > j) {
+                    j = res[resI][0] - 1;
+                    resI--;
+                }
             }
+            return j;
+        };
+
+        const regexPrefixCheck = () => {
+            let j = skipNonCode(i - 2);
+
             if (j < 0) {
                 return true;
             }
@@ -204,6 +215,18 @@ class StaticAnalyzer {
                         return true;
                 }
 
+                if (this.source.charCodeAt(j) === ')'.charCodeAt(0)) {
+                    let bracketStack = 1;
+                    while (bracketStack) {
+                        j = skipNonCode(--j);
+                        if (this.source.charCodeAt(j) === '('.charCodeAt(0)) {
+                            bracketStack--;
+                        } else if (this.source.charCodeAt(j) === ')'.charCodeAt(0)) {
+                            bracketStack++;
+                        }
+                    }
+                    console.log('we got up to here m8 : ', this.source.substr(j - 2, 4));
+                }
                 return false;
             }
             return true;
@@ -221,8 +244,8 @@ class StaticAnalyzer {
             return true;
         };
 
-        const saveScope = (end = i) => {
-            scopes.push([scopeStart, end]);
+        const saveScope = (bracket) => {
+            scopes.push([i, bracket]);
         };
 
         const saveResult = (end = i) => {
@@ -247,9 +270,9 @@ class StaticAnalyzer {
                         state = s.literalString;
                         inLiteralString = false;
                     } else if (cur === '{'.charCodeAt(0)) {
-                        scopeStart = i;
+                        saveScope('{');
                     } else if (cur === '}'.charCodeAt(0)) {
-                        saveScope();
+                        saveScope('}');
                     }
 
                     break;
@@ -281,9 +304,6 @@ class StaticAnalyzer {
                     }
                     break;
                 case s.regex:
-
-                    // \/[^/]+@[^/]+
-                    // doesnt work becuase of / in the middle
 
                     if (cur === '\\'.charCodeAt(0)) {
                         i++;
@@ -366,10 +386,8 @@ class StaticAnalyzer {
     visualizeCode(container) {
         const cur = this.source;
         let res = '';
-        const scopes = [];
-        for (let i = 0; i < this._scopes.length; i++) {
-            scopes.push(...this._scopes[i]);
-        }
+        const scopes = this._scopes.map(a => a[0]);
+
 
         for (let i = 0; i < cur.length; i++) {
             let c = cur.charAt(i).replace('<', "&lt;").replace('>', "&gt;");
