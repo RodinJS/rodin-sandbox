@@ -165,6 +165,9 @@ class StaticAnalyzer {
             squareBracketsRegex: 7
         };
 
+        const jsDelimiterChars = ['=', '+', '-', '/', '*', '%', '(', ')', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?'];
+        const jsOneLiners = ['if', 'for', 'while', 'do'];
+
         const charsBeforeRegex = ['=', '+', '-', '/', '*', '%', '(', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?'];
         const charsAfterRegex = ['=', '+', '-', '/', '*', '%', ')', ']', ';', ',', '}'];
 
@@ -225,7 +228,16 @@ class StaticAnalyzer {
                             bracketStack++;
                         }
                     }
-                    console.log('we got up to here m8 : ', this.source.substr(j - 2, 4));
+                    j = skipNonCode(--j);
+                    const wordEnd = j + 1;
+
+                    while (j >= 0 && jsDelimiterChars.indexOf(this.source.charAt(j)) === -1) {
+                        j--;
+                    }
+                    const wordStart = j + 1;
+                    if (jsOneLiners.indexOf(this.source.substring(wordStart, wordEnd)) !==-1)
+                        return true;
+
                 }
                 return false;
             }

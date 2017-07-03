@@ -1,1 +1,1 @@
-if (true) /camel/gi.match('camel');
+while       /*comments and shit*/       (true) /camel/gi.test('camel');
