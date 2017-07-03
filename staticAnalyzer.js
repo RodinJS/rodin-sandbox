@@ -165,8 +165,8 @@ class StaticAnalyzer {
             squareBracketsRegex: 7
         };
 
-        const jsDelimiterChars = ['=', '+', '-', '/', '*', '%', '(', ')', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?'];
-        const jsOneLiners = ['if', 'for', 'while', 'do'];
+        const jsDelimiterChars = ['=', '+', '-', '/', '*', '%', '(', ')', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?', ' '];
+        const jsOneLiners = ['if', 'for', 'while', 'do', 'else'];
 
         const charsBeforeRegex = ['=', '+', '-', '/', '*', '%', '(', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?'];
         const charsAfterRegex = ['=', '+', '-', '/', '*', '%', ')', ']', ';', ',', '}'];
@@ -228,17 +228,22 @@ class StaticAnalyzer {
                             bracketStack++;
                         }
                     }
-                    j = skipNonCode(--j);
-                    const wordEnd = j + 1;
-
-                    while (j >= 0 && jsDelimiterChars.indexOf(this.source.charAt(j)) === -1) {
-                        j--;
-                    }
-                    const wordStart = j + 1;
-                    if (jsOneLiners.indexOf(this.source.substring(wordStart, wordEnd)) !==-1)
-                        return true;
-
+                    j--;
                 }
+                j = skipNonCode(j);
+
+                const wordEnd = j + 1;
+
+                while (j >= 0 && jsDelimiterChars.indexOf(this.source.charAt(j)) === -1) {
+                    j--;
+                }
+                const wordStart = j + 1;
+                console.log(this.source.substring(wordStart, wordEnd));
+
+                if (jsOneLiners.indexOf(this.source.substring(wordStart, wordEnd)) !== -1) {
+                    return true;
+                }
+
                 return false;
             }
             return true;
