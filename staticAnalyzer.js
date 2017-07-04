@@ -214,6 +214,8 @@ class StaticAnalyzer {
 
                 // probably not very efficient
                 // review this and possibly rewrite
+
+                // join this with 'while' 'for' and other things its literally 10 lines bellow
                 for (let g = 0; g < wordsBeforeRegex.length; g++) {
                     let m = 0;
                     const len = wordsBeforeRegex.length;
