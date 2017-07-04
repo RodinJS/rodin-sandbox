@@ -105,10 +105,12 @@ const initTest = () => {
 
             runTest(data.results[i].latest, (res) => {
 
-                addRow(data.results[i].name,
+                addRow(
+                    data.results[i].name,
                     data.results[i].latest,
                     res['length'], res['openingBracketCount'],
                     res['closingBracketCount'],
+                    res['commentAnalysis'],
                     res['evalError'] || 'ok');
 
                 if (!res['evalError']) {

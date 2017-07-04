@@ -6,7 +6,7 @@ const runStuff = () => {
     let source = '';
 
     // ajax.get('https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.7/ace.js', {}, data => {
-    ajax.get('tmp.js', {}, data => {
+    ajax.get('https://cdnjs.cloudflare.com/ajax/libs/ipfs/0.24.1/index.min.js', {}, data => {
         // loadTHREEJS(data => {
         // loadJQUERY(data => {
         // loadD3(data => {
@@ -41,7 +41,7 @@ const runStuff = () => {
         // res.push(`Analysing scopes takes: ${Date.now() - t}`);
 
         console.log(res.join('\n'));
-        a.visualizeCode(document.getElementById('codeVisualization'));
+        //a.visualizeCode(document.getElementById('codeVisualization'));
         //alert(res.join('\n'));
         window.a = a;
     }, false);

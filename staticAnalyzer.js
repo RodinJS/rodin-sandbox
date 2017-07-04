@@ -246,7 +246,7 @@ class StaticAnalyzer {
                     j--;
                 }
                 const wordStart = j + 1;
-                console.log(this.source.substring(wordStart, wordEnd));
+                //console.log(this.source.substring(wordStart, wordEnd));
 
                 if (jsOneLiners.indexOf(this.source.substring(wordStart, wordEnd)) !== -1) {
                     return true;
@@ -364,6 +364,8 @@ class StaticAnalyzer {
                     }
                     break;
                 case s.literalString:
+                    // ` camels ${10 + `${20}`} `
+                    // this is also valid reflow to work
                     if (cur === '\\'.charCodeAt(0)) {
                         i++;
                     } else if (cur === '$'.charCodeAt(0) && this.source.charCodeAt(i + 1) === '{'.charCodeAt(0)) {
@@ -380,8 +382,9 @@ class StaticAnalyzer {
             i++;
         }
 
-        console.log(res);
+        //console.log(res);
         console.log(instances);
+        window.instances = instances;
         this._commentsAndStrings = res;
         this._commentsAndStringsAnalyzed = true;
         this._scopes = scopes;
