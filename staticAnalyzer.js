@@ -166,7 +166,7 @@ class StaticAnalyzer {
         };
 
         const jsDelimiterChars = ['=', '+', '-', '/', '*', '%', '(', ')', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?', ' '];
-        const jsOneLiners = ['if', 'for', 'while', 'do', 'else'];
+        const jsOneLiners = ['if', 'for', 'while', 'do', 'else', 'return', 'yield', 'typeof'];
 
         const charsBeforeRegex = ['=', '+', '-', '/', '*', '%', '(', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?', '>', '<'];
         const charsAfterRegex = ['=', '+', '-', '/', '*', '%', ')', ']', ';', ',', '}'];
@@ -186,7 +186,7 @@ class StaticAnalyzer {
 
         const skipNonCode = (j) => {
             let resI = res.length - 1;
-            while (j >= 0 && (this.source.charCodeAt(j) === 32 || this.source.charCodeAt(j) === 10 ||
+            while (j >= 0 && (this.source.charCodeAt(j) <= 32 ||
             (resI >= 0 && res[resI][0] < j && res[resI][1] > j))) {
                 j--;
                 if (resI >= 0 && res[resI][0] < j && res[resI][1] > j) {
@@ -218,17 +218,17 @@ class StaticAnalyzer {
                 // review this and possibly rewrite
 
                 // join this with 'while' 'for' and other things its literally 10 lines bellow
-                for (let g = 0; g < wordsBeforeRegex.length; g++) {
-                    let m = 0;
-                    const len = wordsBeforeRegex.length;
-                    const cur = wordsBeforeRegex[g];
-                    const curWordLen = wordsBeforeRegex[g].length;
-                    while (m < curWordLen && cur.charCodeAt(curWordLen - m - 1) === this.source.charCodeAt(j - m)) {
-                        m++;
-                    }
-                    if (m == curWordLen)
-                        return true;
-                }
+                // for (let g = 0; g < wordsBeforeRegex.length; g++) {
+                //     let m = 0;
+                //     const len = wordsBeforeRegex.length;
+                //     const cur = wordsBeforeRegex[g];
+                //     const curWordLen = wordsBeforeRegex[g].length;
+                //     while (m < curWordLen && cur.charCodeAt(curWordLen - m - 1) === this.source.charCodeAt(j - m)) {
+                //         m++;
+                //     }
+                //     if (m == curWordLen)
+                //         return true;
+                // }
 
                 if (this.source.charCodeAt(j) === ')'.charCodeAt(0)) {
                     let bracketStack = 1;
