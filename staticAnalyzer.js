@@ -182,6 +182,8 @@ class StaticAnalyzer {
         let start = null;
         let scopeStart = null;
 
+        let literalStringStackSize = 0;
+
         const skipNonCode = (j) => {
             let resI = res.length - 1;
             while (j >= 0 && (this.source.charCodeAt(j) === 32 || this.source.charCodeAt(j) === 10 ||
@@ -292,6 +294,7 @@ class StaticAnalyzer {
                         state = s.string;
                         stringType = cur;
                     } else if (cur === '`'.charCodeAt(0)) {
+                        literalStringStackSize++;
                         state = s.literalString;
                     } else if (inLiteralString && cur === '}'.charCodeAt(0)) {
                         state = s.literalString;
@@ -377,6 +380,10 @@ class StaticAnalyzer {
                         inLiteralString = true;
                     } else if (cur === '`'.charCodeAt(0)) {
                         saveResult();
+                        literalStringStackSize--;
+                        if (literalStringStackSize) {
+                            inLiteralString = true;
+                        }
                         state = s.anything;
                     }
                     break;

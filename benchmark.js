@@ -6,7 +6,7 @@ const runStuff = () => {
     let source = '';
 
     // ajax.get('https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.7/ace.js', {}, data => {
-    ajax.get('https://cdnjs.cloudflare.com/ajax/libs/ipfs/0.24.1/index.min.js', {}, data => {
+    ajax.get('https://cdnjs.cloudflare.com/ajax/libs/extjs/6.2.0/ext-all.js	', {}, data => {
         // loadTHREEJS(data => {
         // loadJQUERY(data => {
         // loadD3(data => {
