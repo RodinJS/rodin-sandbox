@@ -59,9 +59,12 @@ const initTest = () => {
     let data = null;
 
     const loadFileNames = () => {
-        ajax.get('https://api.cdnjs.com/libraries', {}, d => {
+        data = allLibs;
+        total = data.length;
+        return testAll();
+        ajax.get('libraries.json', {}, d => {
             data = JSON.parse(d);
-            total = data.total;
+            total = data.length;
             if (isRunning) {
                 testAll();
             }
@@ -98,16 +101,15 @@ const initTest = () => {
 
 
         const _runTest = () => {
-            if (!isJS(data.results[i].latest)) {
+            if (!isJS(data[i])) {
                 i++;
                 return setTimeout(_runTest, 50);
             }
 
-            runTest(data.results[i].latest, (res) => {
+            runTest(data[i], (res) => {
 
                 addRow(
-                    data.results[i].name,
-                    data.results[i].latest,
+                    data[i],
                     res['length'], res['openingBracketCount'],
                     res['closingBracketCount'],
                     res['commentAnalysis'],
@@ -118,7 +120,7 @@ const initTest = () => {
                 }
                 i++;
                 allCount++;
-                document.getElementById('status').innerText = `${okCount} / ${allCount}, ${parseInt(okCount / allCount * 1000) / 10}%`;
+                document.getElementById('status').innerText = `${okCount} / ${allCount}, ${parseInt(okCount / allCount * 1000) / 10}%, tested ${parseInt(allCount / total * 1000) / 10}%`;
                 if (i < total && isRunning) {
                     setTimeout(_runTest, 50);
                 }
