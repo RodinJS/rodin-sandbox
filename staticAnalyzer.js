@@ -152,7 +152,10 @@ class StaticAnalyzer {
 
         const res = [];
         const instances = [];
-        const scopes = [];
+        const scopes = [[], []];
+
+        const scopeStack = [];
+        let scopeStackSize = 0;
 
         const s = {
             anything: 0,
@@ -274,7 +277,21 @@ class StaticAnalyzer {
         };
 
         const saveScope = (bracket) => {
-            scopes.push([i, bracket]);
+            if (bracket === '{'.charCodeAt(0)) {
+                scopes[0].push(i);
+                scopes[1].push(NaN);
+                if (scopeStack.length < scopeStackSize) {
+                    scopeStack.push(scopes[0].length - 1);
+                }
+                else {
+                    scopeStack[scopeStackSize] = scopes[0].length - 1;
+                }
+                scopeStackSize++;
+            } else {
+                scopes[1][scopeStack[scopeStackSize - 1]] = i;
+                scopeStackSize--;
+            }
+            //scopes.push([i, bracket]);
         };
 
         const saveResult = (end = i) => {
@@ -300,9 +317,9 @@ class StaticAnalyzer {
                         state = s.literalString;
                         inLiteralString = false;
                     } else if (cur === '{'.charCodeAt(0)) {
-                        saveScope('{');
+                        saveScope(cur);
                     } else if (cur === '}'.charCodeAt(0)) {
-                        saveScope('}');
+                        saveScope(cur);
                     }
 
                     break;
@@ -423,7 +440,7 @@ class StaticAnalyzer {
     visualizeCode(container) {
         const cur = this.source;
         let res = '';
-        const scopes = this._scopes.map(a => a[0]);
+        const scopes = [...this._scopes[0], ...this._scopes[1]];
 
 
         for (let i = 0; i < cur.length; i++) {
