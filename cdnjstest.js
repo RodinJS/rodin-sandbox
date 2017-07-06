@@ -17,7 +17,7 @@ const runTest = (url, callback) => {
         // a.analyzeScopes();
         // res['scopeAnalysis'] = Date.now() - t;
 
-        const str = a._scopes.map(a => a[1]).join('');
+        const str = a._scopeString;
 
         res['openingBracketCount'] = find(str, '{').length;
         res['closingBracketCount'] = find(str, '}').length;
@@ -59,12 +59,9 @@ const initTest = () => {
     let data = null;
 
     const loadFileNames = () => {
-        data = allLibs;
-        total = data.length;
-        return testAll();
-        ajax.get('libraries.json', {}, d => {
+        ajax.get('https://api.cdnjs.com/libraries', {}, d => {
             data = JSON.parse(d);
-            total = data.length;
+            total = data.total;
             if (isRunning) {
                 testAll();
             }
@@ -101,15 +98,16 @@ const initTest = () => {
 
 
         const _runTest = () => {
-            if (!isJS(data[i])) {
+            if (!isJS(data.results[i].latest)) {
                 i++;
                 return setTimeout(_runTest, 50);
             }
 
-            runTest(data[i], (res) => {
+            runTest(data.results[i].latest, (res) => {
 
                 addRow(
-                    data[i],
+                    data.results[i].name,
+                    data.results[i].latest,
                     res['length'], res['openingBracketCount'],
                     res['closingBracketCount'],
                     res['commentAnalysis'],
@@ -120,7 +118,7 @@ const initTest = () => {
                 }
                 i++;
                 allCount++;
-                document.getElementById('status').innerText = `${okCount} / ${allCount}, ${parseInt(okCount / allCount * 1000) / 10}%, tested ${parseInt(allCount / total * 1000) / 10}%`;
+                document.getElementById('status').innerText = `${okCount} / ${allCount}, ${parseInt(okCount / allCount * 1000) / 10}%`;
                 if (i < total && isRunning) {
                     setTimeout(_runTest, 50);
                 }

@@ -157,6 +157,8 @@ class StaticAnalyzer {
         const scopeStack = [];
         let scopeStackSize = 0;
 
+        this._scopeString = '';
+
         const s = {
             anything: 0,
             afterSlash: 1,
@@ -277,6 +279,9 @@ class StaticAnalyzer {
         };
 
         const saveScope = (bracket) => {
+
+            this._scopeString += String.fromCharCode(bracket);
+
             if (bracket === '{'.charCodeAt(0)) {
                 scopes[0].push(i);
                 scopes[1].push(NaN);
@@ -329,10 +334,11 @@ class StaticAnalyzer {
                     } else if (cur === '*'.charCodeAt(0)) {
                         state = s.multilineComment;
                     } else if (regexPrefixCheck()) {
-                        if (cur === '\\'.charCodeAt(0)) {
-                            i++;
-                        }
+                        // if (cur === '\\'.charCodeAt(0)) {
+                        //     i++;
+                        // }
                         state = s.regex;
+                        i -= 1;
                     } else {
                         state = s.anything;
                     }
@@ -432,6 +438,38 @@ class StaticAnalyzer {
         return false;
 
         return binarySearch(this._commentsAndStrings, index) !== -1;
+    }
+
+    findExports() {
+        const rx = /(?:^|\s|\/|\)|\[|;|{|})(export)(?=({{1,})|\s)/gm;
+        let match;
+        const matches = [];
+        const start = Date.now();
+        while ((match = rx.exec(this.source))) {
+            if (this.isCommentOrString(match.index)) {
+                continue;
+            }
+            matches.push(match[0].indexOf('export') + match.index);
+        }
+        console.log("findExports", Date.now() - start);
+        console.log(matches.join("\n"), matches.length);
+
+    }
+
+
+    findReferences(variable) {
+        const rx = new RegExp('(?:^|\\s|=|\\+|\\-|\\/|\\*|\\%|\\(|\\)|\\[|;|:|{|}|\\n|\\r|,|!|&|\\||\\^|\\?|>|<)('
+            + variable
+            + ')(?=\\s|$|=|\\+|\\.|\\-|\\/|\\*|\\%|\\(|\\)|\\[|\\]|;|:|{|}|\\n|\\r|,|!|&|\\||\\^|\\?|>|<)', 'gm'
+        );
+        let match;
+        const matches = [];
+        const start = Date.now();
+        while ((match = rx.exec(this.source))) {
+            matches.push(match.index);
+        }
+        console.log("findReferences", Date.now() - start);
+        console.log(matches);
     }
 
 
