@@ -345,6 +345,7 @@ class StaticAnalyzer {
                         i -= 1;
                     } else {
                         state = s.anything;
+                        i -= 1;
                     }
                     break;
                 case s.comment:
