@@ -171,12 +171,12 @@ class StaticAnalyzer {
         };
 
         const jsDelimiterChars = ['=', '+', '-', '/', '*', '%', '(', ')', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?', ' '];
-        const jsOneLiners = ['if', 'for', 'while', 'do', 'else', 'case'];
+        const jsOneLiners = ['if', 'for', 'while'];
 
         const charsBeforeRegex = ['=', '+', '-', '/', '*', '%', '(', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?', '>', '<'];
         const charsAfterRegex = ['=', '+', '-', '/', '*', '%', ')', ']', ';', ',', '}'];
 
-        const wordsBeforeRegex = ['return', 'yield', 'typeof', 'case'];
+        const wordsBeforeRegex = ['return', 'yield', 'typeof', 'case', 'do', 'else'];
 
         const length = this.source.length;
         let i = 0;
@@ -222,20 +222,21 @@ class StaticAnalyzer {
                 // probably not very efficient
                 // review this and possibly rewrite
 
-                // join this with 'while' 'for' and other things its literally 10 lines bellow
-                for (let g = 0; g < wordsBeforeRegex.length; g++) {
-                    let m = 0;
-                    const len = wordsBeforeRegex.length;
-                    const cur = wordsBeforeRegex[g];
-                    const curWordLen = wordsBeforeRegex[g].length;
-                    while (m < curWordLen && cur.charCodeAt(curWordLen - m - 1) === this.source.charCodeAt(j - m)) {
-                        m++;
-                    }
-                    if (m == curWordLen)
-                        return true;
-                }
-
+                // // join this with 'while' 'for' and other things its literally 10 lines bellow
+                // for (let g = 0; g < wordsBeforeRegex.length; g++) {
+                //     let m = 0;
+                //     const len = wordsBeforeRegex.length;
+                //     const cur = wordsBeforeRegex[g];
+                //     const curWordLen = wordsBeforeRegex[g].length;
+                //     while (m < curWordLen && cur.charCodeAt(curWordLen - m - 1) === this.source.charCodeAt(j - m)) {
+                //         m++;
+                //     }
+                //     if (m == curWordLen)
+                //         return true;
+                // }
+                let roundBrackets = false;
                 if (this.source.charCodeAt(j) === ')'.charCodeAt(0)) {
+                    roundBrackets = true;
                     let bracketStack = 1;
                     while (bracketStack) {
                         j = skipNonCode(--j);
@@ -257,7 +258,10 @@ class StaticAnalyzer {
                 const wordStart = j + 1;
                 //console.log(this.source.substring(wordStart, wordEnd));
 
-                if (jsOneLiners.indexOf(this.source.substring(wordStart, wordEnd)) !== -1) {
+                // refactor this if, better ways to write it as a single expression
+                if (roundBrackets && jsOneLiners.indexOf(this.source.substring(wordStart, wordEnd)) !== -1) {
+                    return true;
+                } else if (!roundBrackets && wordsBeforeRegex.indexOf(this.source.substring(wordStart, wordEnd)) !== -1) {
                     return true;
                 }
 
