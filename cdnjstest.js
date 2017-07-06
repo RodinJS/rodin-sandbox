@@ -92,6 +92,8 @@ const initTest = () => {
     let i = 0;
     let allCount = 0;
 
+    let charMsSum = 0;
+
     const testAll = () => {
         if (total === null)
             return;
@@ -106,19 +108,24 @@ const initTest = () => {
             runTest(data.results[i].latest, (res) => {
 
                 addRow(
-                    data.results[i].name,
-                    data.results[i].latest,
+                    `<a href="${data.results[i].latest}">${data.results[i].name}</a>`,
                     res['length'], res['openingBracketCount'],
                     res['closingBracketCount'],
                     res['commentAnalysis'],
+                    Math.round(res['length'] / res['commentAnalysis']),
                     res['evalError'] || 'ok');
+
+                if (res['commentAnalysis'] !== 0) {
+                    charMsSum += res['length'] / res['commentAnalysis'];
+                }
 
                 if (!res['evalError']) {
                     okCount++;
                 }
                 i++;
                 allCount++;
-                document.getElementById('status').innerText = `${okCount} / ${allCount}, ${parseInt(okCount / allCount * 1000) / 10}%`;
+                document.getElementById('status').innerText =
+                    `${okCount} / ${allCount}, ${parseInt(okCount / allCount * 1000) / 10}% average speed: ${parseInt(charMsSum / allCount)} chars/ms`;
                 if (i < total && isRunning) {
                     setTimeout(_runTest, 50);
                 }
