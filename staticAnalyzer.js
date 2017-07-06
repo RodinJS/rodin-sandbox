@@ -171,12 +171,12 @@ class StaticAnalyzer {
         };
 
         const jsDelimiterChars = ['=', '+', '-', '/', '*', '%', '(', ')', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?', ' '];
-        const jsOneLiners = ['if', 'for', 'while', 'do', 'else'];
+        const jsOneLiners = ['if', 'for', 'while', 'do', 'else', 'case'];
 
         const charsBeforeRegex = ['=', '+', '-', '/', '*', '%', '(', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?', '>', '<'];
         const charsAfterRegex = ['=', '+', '-', '/', '*', '%', ')', ']', ';', ',', '}'];
 
-        const wordsBeforeRegex = ['return', 'yield', 'typeof'];
+        const wordsBeforeRegex = ['return', 'yield', 'typeof', 'case'];
 
         const length = this.source.length;
         let i = 0;
