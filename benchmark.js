@@ -6,7 +6,7 @@ const runStuff = () => {
     let source = '';
 
     // ajax.get('https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.7/ace.js', {}, data => {
-    ajax.get('https://cdnjs.cloudflare.com/ajax/libs/extjs/6.2.0/ext-all.js	', {}, data => {
+    ajax.get('tmp.js	', {}, data => {
         // loadTHREEJS(data => {
         // loadJQUERY(data => {
         // loadD3(data => {
@@ -20,6 +20,10 @@ const runStuff = () => {
         t = Date.now();
         a.analyzeCommentsAndStrings();
         res.push(`comments and string analysis: ${Date.now() - t}`);
+
+        t = Date.now();
+        a.findExports();
+        res.push(`export analysis: ${Date.now() - t}`);
 
         // let count = 100;
         // while (count <= 100000) {

@@ -103,7 +103,6 @@ class StaticAnalyzer {
     constructor(source) {
         this.source = source;
         this._commentsAndStringsAnalyzed = false;
-
     }
 
     // analyzeCommentsAndStrings() {
@@ -446,19 +445,66 @@ class StaticAnalyzer {
     }
 
     findExports() {
-        const rx = /(?:^|\s|\/|\)|\[|;|{|})(export)(?=({{1,})|\s)/gm;
+        const rx = /(?:^|\s|\/|\)|\[|;|{|})(export)(?={|\s|\/)/gm;
         let match;
-        const matches = [];
-        const start = Date.now();
+        const exportBeginnings = [];
         while ((match = rx.exec(this.source))) {
             if (this.isCommentOrString(match.index)) {
                 continue;
             }
-            matches.push(match[0].indexOf('export') + match.index);
+            exportBeginnings.push(match[0].indexOf('export') + match.index);
         }
-        console.log("findExports", Date.now() - start);
-        console.log(matches.join("\n"), matches.length);
 
+        let curCommentIndex = NaN;
+        const skipNonCode = (j) => {
+            curCommentIndex = curCommentIndex || binarySearch(this._commentsAndStrings, j);
+
+            while (j < this.source.length) {
+                if (curCommentIndex > 0 && curCommentIndex < this._commentsAndStrings.length &&
+                    this._commentsAndStrings[curCommentIndex][0] < j && this._commentsAndStrings[curCommentIndex][1] > j) {
+
+                    j = this._commentsAndStrings[curCommentIndex][1] + 1;
+                    curCommentIndex++;
+                    continue;
+                }
+
+                if (this.source.charCodeAt(j) <= 32) {
+                    j++;
+                    continue;
+                }
+
+                break;
+            }
+            return j;
+        };
+
+
+        const exportTypes = new Int8Array(exportBeginnings.length);
+        for (let i = 0; i < exportBeginnings.length; i++) {
+            curCommentIndex = NaN;
+
+            let exportBeginning = exportBeginnings[i] + 6;
+            let xuy = exportBeginning;
+            exportBeginning = skipNonCode(exportBeginning);
+
+            console.log('skipped', this.source.substr(xuy, exportBeginning));
+            if ('{'.charCodeAt(0) === this.source.charCodeAt(exportBeginning)) {
+                exportTypes[i] = 1; // {...}
+            }
+
+            if ('let ' === this.source.substr(exportBeginning, 4)) {
+                exportTypes[i] = 2; // let
+            }
+
+            if ('const ' === this.source.substr(exportBeginning, 6)) {
+                exportTypes[i] = 3; // const
+            }
+        }
+
+
+        console.log('exports');
+        console.log(exportBeginnings);
+        console.log(exportTypes);
     }
 
 
