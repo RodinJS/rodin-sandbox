@@ -15,7 +15,7 @@ const find = (source, needle, method = 'indexOf') => {
 const commentNeedles = ['//', '\n', '/*', '*/', '\'', '"', '`', '${', '}', '/'];
 const scopeNeedles = ['{', '}'];
 
-const binarySearch = (intervals, index) => {
+const binarySearch = (intervals, index, left = false) => {
     let low = 0;
     let high = intervals.length - 1;
     let mid = NaN;
@@ -25,6 +25,10 @@ const binarySearch = (intervals, index) => {
         else if (intervals[mid][1] < index) low = mid + 1;
         else high = mid - 1;
     }
+
+    if (left)
+        return low;
+
     return -1;
 };
 
@@ -434,12 +438,12 @@ class StaticAnalyzer {
         }
 
         // make this O(log(n)) with a set, maybe make it conditional even
-        for (let i = 0; i < this._commentsAndStrings.length; i++) {
-            if (this._commentsAndStrings[i][0] <= index && index < this._commentsAndStrings[i][1]) {
-                return true;
-            }
-        }
-        return false;
+        // for (let i = 0; i < this._commentsAndStrings.length; i++) {
+        //     if (this._commentsAndStrings[i][0] <= index && index <= this._commentsAndStrings[i][1]) {
+        //         return true;
+        //     }
+        // }
+        // return false;
 
         return binarySearch(this._commentsAndStrings, index) !== -1;
     }
@@ -449,56 +453,81 @@ class StaticAnalyzer {
         let match;
         const exportBeginnings = [];
         while ((match = rx.exec(this.source))) {
-            if (this.isCommentOrString(match.index)) {
+            let curPos = match[0].indexOf('export') + match.index;
+            if (this.isCommentOrString(curPos)) {
                 continue;
             }
-            exportBeginnings.push(match[0].indexOf('export') + match.index);
+            exportBeginnings.push(curPos);
         }
 
         let curCommentIndex = NaN;
         const skipNonCode = (j) => {
-            curCommentIndex = curCommentIndex || binarySearch(this._commentsAndStrings, j);
+            curCommentIndex = curCommentIndex || binarySearch(this._commentsAndStrings, j, true);
 
             while (j < this.source.length) {
-                if (curCommentIndex > 0 && curCommentIndex < this._commentsAndStrings.length &&
-                    this._commentsAndStrings[curCommentIndex][0] < j && this._commentsAndStrings[curCommentIndex][1] > j) {
+                if (curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
+                    this._commentsAndStrings[curCommentIndex][0] <= j && j <= this._commentsAndStrings[curCommentIndex][1]) {
 
                     j = this._commentsAndStrings[curCommentIndex][1] + 1;
                     curCommentIndex++;
                     continue;
-                }
-
-                if (this.source.charCodeAt(j) <= 32) {
+                } else if (this.source.charCodeAt(j) <= 32) {
                     j++;
                     continue;
                 }
 
                 break;
             }
+
             return j;
+        };
+
+        const getExportType = (exportBeginning) => {
+            if ('{'.charCodeAt(0) === this.source.charCodeAt(exportBeginning)) {
+                return 1; // {...}
+            }
+
+            if ('let ' === this.source.substr(exportBeginning, 4)) {
+                return 2; // let
+            }
+
+            if ('const ' === this.source.substr(exportBeginning, 6)) {
+                return 3; // const
+            }
+
+            if('default ' === this.source.substr(exportBeginning, 8)) {
+                return 4; // default
+            }
+
+            if('*'.charCodeAt(0) === this.source.charCodeAt(exportBeginning)) {
+                return 5; // *
+            }
+
+            if('function ' === this.source.substr(exportBeginning, 9)) {
+                // todo: es chgitem petq a tarberutyun dnel te che
+
+                // let i = skipNonCode(exportBeginning + 9);
+                // if('*'.charCodeAt(0) === this.source.charCodeAt(i))
+                //     return 7; // function *
+
+                return 5; // function
+            }
+
+            if('class ' === this.source.substr(exportBeginning, 6)) {
+                return 6; // class
+            }
         };
 
 
         const exportTypes = new Int8Array(exportBeginnings.length);
         for (let i = 0; i < exportBeginnings.length; i++) {
+            // todo: fix this sheet. dont search comment for each export
             curCommentIndex = NaN;
-
             let exportBeginning = exportBeginnings[i] + 6;
-            let xuy = exportBeginning;
             exportBeginning = skipNonCode(exportBeginning);
+            exportTypes[i] = getExportType(exportBeginning);
 
-            console.log('skipped', this.source.substr(xuy, exportBeginning));
-            if ('{'.charCodeAt(0) === this.source.charCodeAt(exportBeginning)) {
-                exportTypes[i] = 1; // {...}
-            }
-
-            if ('let ' === this.source.substr(exportBeginning, 4)) {
-                exportTypes[i] = 2; // let
-            }
-
-            if ('const ' === this.source.substr(exportBeginning, 6)) {
-                exportTypes[i] = 3; // const
-            }
+            console.log(i, this.source.substr(exportBeginning, 10));
         }
 
 
