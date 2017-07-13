@@ -103,6 +103,8 @@ const reduce = (source, needles) => {
     return [reducedSource, reduceMap];
 };
 
+const jsDelimiterChars = ['=', '+', '-', '/', '*', '%', '(', ')', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?', ' '];
+
 class StaticAnalyzer {
     constructor(source) {
         this.source = source;
@@ -154,6 +156,7 @@ class StaticAnalyzer {
         // dismiss the regex, and lose // comment in the middle
 
         const res = [];
+        const resTypes = [];
         const instances = [];
         const scopes = [[], []];
 
@@ -173,7 +176,6 @@ class StaticAnalyzer {
             squareBracketsRegex: 7
         };
 
-        const jsDelimiterChars = ['=', '+', '-', '/', '*', '%', '(', ')', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?', ' '];
         const jsOneLiners = ['if', 'for', 'while'];
 
         const charsBeforeRegex = ['=', '+', '-', '/', '*', '%', '(', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?', '>', '<'];
@@ -309,6 +311,7 @@ class StaticAnalyzer {
         const saveResult = (end = i) => {
             instances.push(this.source.substring(start, end + 1));
             res.push([start, end + 1]);
+            resTypes.push(state);
         };
 
         while (i < length) {
@@ -426,6 +429,7 @@ class StaticAnalyzer {
         //console.log(instances);
         //window.instances = instances;
         this._commentsAndStrings = res;
+        this._commentsAndStringsTypes = resTypes;
         this._commentsAndStringsAnalyzed = true;
         this._scopes = scopes;
         //return res;
@@ -468,10 +472,12 @@ class StaticAnalyzer {
                 if (curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
                     this._commentsAndStrings[curCommentIndex][0] <= j && j <= this._commentsAndStrings[curCommentIndex][1]) {
 
-                    j = this._commentsAndStrings[curCommentIndex][1] + 1;
+                    j = this._commentsAndStrings[curCommentIndex][1];
                     curCommentIndex++;
                     continue;
-                } else if (this.source.charCodeAt(j) <= 32) {
+                }
+
+                if (this.source.charCodeAt(j) <= 32) {
                     j++;
                     continue;
                 }
@@ -482,58 +488,382 @@ class StaticAnalyzer {
             return j;
         };
 
-        const getExportType = (exportBeginning) => {
-            if ('{'.charCodeAt(0) === this.source.charCodeAt(exportBeginning)) {
-                return 1; // {...}
+        const nextString = (j) => {
+            curCommentIndex = curCommentIndex || binarySearch(this._commentsAndStrings, j, true);
+
+            console.log('asd', curCommentIndex);
+            while (j < this.source.length) {
+                if (curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
+                    this._commentsAndStrings[curCommentIndex][0] <= j && j <= this._commentsAndStrings[curCommentIndex][1] &&
+                    (this._commentsAndStringsTypes[curCommentIndex] === 4 || this._commentsAndStringsTypes[curCommentIndex] === 5)) {
+
+                    j = this._commentsAndStrings[curCommentIndex][1];
+                    curCommentIndex++;
+                    continue;
+                }
+
+                if (this.source.charCodeAt(j) <= 32) {
+                    j++;
+                    continue;
+                }
+
+                break;
             }
 
-            if ('let ' === this.source.substr(exportBeginning, 4)) {
-                return 2; // let
-            }
-
-            if ('const ' === this.source.substr(exportBeginning, 6)) {
-                return 3; // const
-            }
-
-            if('default ' === this.source.substr(exportBeginning, 8)) {
-                return 4; // default
-            }
-
-            if('*'.charCodeAt(0) === this.source.charCodeAt(exportBeginning)) {
-                return 5; // *
-            }
-
-            if('function ' === this.source.substr(exportBeginning, 9)) {
-                // todo: es chgitem petq a tarberutyun dnel te che
-
-                // let i = skipNonCode(exportBeginning + 9);
-                // if('*'.charCodeAt(0) === this.source.charCodeAt(i))
-                //     return 7; // function *
-
-                return 5; // function
-            }
-
-            if('class ' === this.source.substr(exportBeginning, 6)) {
-                return 6; // class
-            }
+            return curCommentIndex;
         };
 
+        const analizeExport = (i) => {
+            i += 6;
 
-        const exportTypes = new Int8Array(exportBeginnings.length);
+            const states = {
+                start: 0,
+                brackets: {
+                    anything: 10,
+                    var: 11,
+                    as: 12,
+                    label: 13
+                },
+                let: {
+                    anything: 20,
+                    var: 21,
+                    afterEqual: 22
+                },
+                const: {
+                    anything: 30,
+                    var: 31,
+                    afterEqual: 32
+                },
+                functionClass: {
+                    anything: 40,
+                    var: 41
+                },
+                from: 50,
+                end: 100
+            };
+
+            // todo: es pah@ qnnarkel a petq Sergi Arami het
+            const memory = {
+                currVar: new Array(1000),
+                currVarLength: 0,
+                currLabel: new Array(1000),
+                currLabelLength: 0,
+                exportType: '',
+                nonCodeSkipped: false,
+                from: null
+            };
+
+            const bracketVars = [];
+            const letVars = [];
+            const constVars = [];
+            let functionClass = null;
+
+            const saveBracketVar = () => {
+                const name = memory.currVar.join('');
+                const label = memory.currLabelLength > 0 ? memory.currLabel.join('') : name;
+
+                memory.currVar.fill(undefined);
+                memory.currLabel.fill(undefined);
+                memory.currVarLength = 0;
+                memory.currLabelLength = 0;
+
+                bracketVars.push({name, label})
+            };
+
+            const saveLetVar = () => {
+                const name = memory.currVar.join('');
+
+                memory.currVar.fill(undefined);
+                memory.currVarLength = 0;
+
+                letVars.push({name, label: name});
+            };
+
+            const saveConstVar = () => {
+                const name = memory.currVar.join('');
+
+                memory.currVar.fill(undefined);
+                memory.currVarLength = 0;
+
+                constVars.push({name, label: name});
+            };
+
+            const saveFunctionVar = () => {
+                const name = memory.currVar.join('');
+                functionClass = {name, label: name};
+            };
+
+            const collectResults = () => {
+                return {
+                    bracketVars,
+                    letVars,
+                    constVars,
+                    functionClass,
+                    from: memory.from,
+                    type: memory.exportType
+                }
+            };
+
+            let state = states.start;
+
+            while (i < this.source.length) {
+                let j = skipNonCode(i);
+                memory.nonCodeSkipped = i !== j;
+                i = j;
+
+                const currChar = this.source.charAt(i);
+
+
+                switch (state) {
+                    /**
+                     * Checks export type
+                     */
+                    case states.start:
+                        if ('{'.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            state = states.brackets.anything;
+                            break;
+                        }
+
+                        if('*'.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            memory.exportType = '*';
+                            state = states.from;
+                            break;
+                        }
+
+                        if ('let' === this.source.substr(i, 3) && jsDelimiterChars.indexOf(this.source.charAt(i + 3)) !== -1) {
+                            i += 2;
+                            state = states.let.anything;
+                            break;
+                        }
+
+                        if ('const' === this.source.substr(i, 5) && jsDelimiterChars.indexOf(this.source.charAt(i + 5)) !== -1) {
+                            i += 4;
+                            state = states.const.anything;
+                            break;
+                        }
+
+                        if ('function' === this.source.substr(i, 8) && jsDelimiterChars.indexOf(this.source.charAt(i + 8)) !== -1) {
+                            memory.exportType = 'function';
+                            i += 7;
+                            let j = skipNonCode(i + 1);
+                            if ('*'.charCodeAt(0) === this.source.charCodeAt(j)) {
+                                i = j;
+                                memory.exportType = 'function*';
+                            }
+
+                            state = states.functionClass.anything;
+                            break;
+                        }
+
+                        if ('class' === this.source.substr(i, 5) && jsDelimiterChars.indexOf(this.source.charAt(i + 5)) !== -1) {
+                            memory.exportType = 'class';
+                            i += 4;
+                            state = states.functionClass.anything;
+                            break;
+                        }
+
+                        if ('default' === this.source.substr(i, 7) && jsDelimiterChars.indexOf(this.source.charAt(i + 7)) !== -1) {
+                            memory.exportType = 'default';
+                            state = states.end;
+                            break;
+                        }
+
+                        break;
+
+                    /**
+                     * EXPORT TYPE Brackets
+                     */
+                    case states.brackets.anything:
+                        memory.exportType = 'brackets';
+                        i--;
+                        state = states.brackets.var;
+                        break;
+
+                    case states.brackets.var:
+                        i = skipNonCode(i);
+
+                        if (memory.nonCodeSkipped && 'a'.charCodeAt(0) === this.source.charCodeAt(i) && 's'.charCodeAt(0) === this.source.charCodeAt(i + 1)) {
+                            i += 2;
+                            state = states.brackets.label;
+                            break;
+                        }
+
+                        if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            saveBracketVar();
+                            i++;
+                            state = states.brackets.anything;
+                            break;
+                        }
+
+                        if ('}'.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            saveBracketVar();
+                            // state = states.end;
+                            state = states.from;
+                            break;
+                        }
+
+                        memory.currVar[memory.currVarLength] = currChar;
+                        memory.currVarLength++;
+                        break;
+
+                    case states.brackets.label:
+                        i = skipNonCode(i);
+
+                        if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            saveBracketVar();
+                            i++;
+                            state = states.brackets.anything;
+                            break;
+                        }
+
+                        if ('}'.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            saveBracketVar();
+                            // state = states.end;
+                            state = states.from;
+                            break;
+                        }
+
+                        memory.currLabel[memory.currLabelLength] = currChar;
+                        memory.currLabelLength++;
+                        break;
+
+
+                    /**
+                     * EXPORT TYPE Let
+                     */
+                    case states.let.anything:
+                        memory.exportType = 'let';
+                        i -= 1;
+                        state = states.let.var;
+                        break;
+
+                    case states.let.var:
+                        if ('='.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            saveLetVar();
+                            state = states.let.afterEqual;
+                            break;
+                        }
+
+                        if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            saveLetVar();
+                            state = states.let.anything;
+                            break;
+                        }
+
+                        if (';'.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            saveLetVar();
+                            state = states.end;
+                            break;
+                        }
+
+                        memory.currVar[memory.currVarLength++] = currChar;
+                        break;
+
+                    case states.let.afterEqual:
+                        if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            state = states.let.anything;
+                            break;
+                        }
+
+                        if (';'.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            state = states.end;
+                            break;
+                        }
+
+                        break;
+
+                    /**
+                     * EXPORT TYPE Const
+                     */
+                    case states.const.anything:
+                        memory.exportType = 'const';
+                        i -= 1;
+                        state = states.const.var;
+                        break;
+
+                    case states.const.var:
+                        if ('='.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            saveConstVar();
+                            state = states.const.afterEqual;
+                            break;
+                        }
+
+                        if (';'.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            saveConstVar();
+                            state = states.end;
+                            break;
+                        }
+
+                        memory.currVar[memory.currVarLength++] = currChar;
+                        break;
+
+                    case states.const.afterEqual:
+                        if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            state = states.const.anything;
+                            break;
+                        }
+
+                        if (';'.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            state = states.end;
+                            break;
+                        }
+
+                        break;
+
+
+                    /**
+                     * EXPORT TYPE Function
+                     */
+                    case states.functionClass.anything:
+                        i -= 1;
+                        state = states.functionClass.var;
+                        break;
+
+                    case states.functionClass.var:
+                        if (memory.nonCodeSkipped || '('.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            saveFunctionVar();
+                            state = states.end;
+                            break;
+                        }
+
+                        memory.currVar[memory.currVarLength++] = currChar;
+                        break;
+
+                    /**
+                     * FROM
+                     */
+                    case states.from:
+                        if (this.source.substr(i, 4) === 'from') {
+                            i += 4;
+                            const url = this._commentsAndStrings[nextString(i)];
+                            console.log('url', url);
+                            memory.from = this.source.substring(url[0], url[1]);
+                            break;
+                        }
+
+                        state = states.end;
+                        break;
+
+                    /**
+                     * Return results
+                     */
+                    case states.end:
+                        return collectResults();
+                }
+
+                i++;
+            }
+
+            return collectResults();
+        };
+
+        const exports = [];
         for (let i = 0; i < exportBeginnings.length; i++) {
-            // todo: fix this sheet. dont search comment for each export
-            curCommentIndex = NaN;
-            let exportBeginning = exportBeginnings[i] + 6;
-            exportBeginning = skipNonCode(exportBeginning);
-            exportTypes[i] = getExportType(exportBeginning);
-
-            console.log(i, this.source.substr(exportBeginning, 10));
+            let currExports = analizeExport(exportBeginnings[i]);
+            exports.push(currExports);
         }
 
-
-        console.log('exports');
-        console.log(exportBeginnings);
-        console.log(exportTypes);
+        this.exports = exports;
     }
 
 
@@ -579,5 +909,3 @@ class StaticAnalyzer {
         container.innerHTML = res.replace(/\n/g, '<br>').replace(/\s/g, '&nbsp;');
     }
 }
-
-

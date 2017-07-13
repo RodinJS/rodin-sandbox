@@ -5,9 +5,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
 const runStuff = () => {
     let source = '';
 
-    // ajax.get('https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.7/ace.js', {}, data => {
-    ajax.get('tmp.js	', {}, data => {
-        // loadTHREEJS(data => {
+    // ajax.get('https://cdnjs.cloudflare.com/ajax/libs/three.js/86/three.module.js', {}, data => {
+    ajax.get('tmp.js', {}, data => {
+    //     loadTHREEJS(data => {
         // loadJQUERY(data => {
         // loadD3(data => {
         // loadOtherJS(data => {
