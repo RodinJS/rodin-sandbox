@@ -491,7 +491,6 @@ class StaticAnalyzer {
         const nextString = (j) => {
             curCommentIndex = curCommentIndex || binarySearch(this._commentsAndStrings, j, true);
 
-            console.log('asd', curCommentIndex);
             while (j < this.source.length) {
                 if (curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
                     this._commentsAndStrings[curCommentIndex][0] <= j && j <= this._commentsAndStrings[curCommentIndex][1] &&
@@ -511,6 +510,38 @@ class StaticAnalyzer {
             }
 
             return curCommentIndex;
+        };
+
+        const skipBrackets = (j) => {
+            const openingBracket = this.source.charCodeAt(j);
+
+            if (openingBracket === '{'.charCodeAt(0)) {
+                return this._scopes[1][this._scopes[0].indexOf(j)];
+            }
+
+            let closingBracket;
+            if (openingBracket === '('.charCodeAt(0))
+                closingBracket = ')'.charCodeAt(0);
+
+            if (openingBracket === '['.charCodeAt(0))
+                closingBracket = ']'.charCodeAt(0);
+
+            let stack = 1;
+            while (++j < this.source.length) {
+                j = skipNonCode(j);
+
+                if (openingBracket === this.source.charCodeAt(j))
+                    stack++;
+
+                if (closingBracket === this.source.charCodeAt(j)) {
+                    stack--;
+
+                    if (stack === 0)
+                        return j;
+                }
+            }
+
+            return -1;
         };
 
         const analizeExport = (i) => {
@@ -542,7 +573,6 @@ class StaticAnalyzer {
                 end: 100
             };
 
-            // todo: es pah@ qnnarkel a petq Sergi Arami het
             const memory = {
                 currVar: new Array(1000),
                 currVarLength: 0,
@@ -558,6 +588,11 @@ class StaticAnalyzer {
             const constVars = [];
             let functionClass = null;
 
+            const currExportsArr = {
+                names: [],
+                labels: []
+            };
+
             const saveBracketVar = () => {
                 const name = memory.currVar.join('');
                 const label = memory.currLabelLength > 0 ? memory.currLabel.join('') : name;
@@ -567,7 +602,9 @@ class StaticAnalyzer {
                 memory.currVarLength = 0;
                 memory.currLabelLength = 0;
 
-                bracketVars.push({name, label})
+                bracketVars.push({name, label});
+                currExportsArr.names.push(name);
+                currExportsArr.labels.push(label);
             };
 
             const saveLetVar = () => {
@@ -594,14 +631,16 @@ class StaticAnalyzer {
             };
 
             const collectResults = () => {
-                return {
+                const exports = {
                     bracketVars,
                     letVars,
                     constVars,
                     functionClass,
                     from: memory.from,
                     type: memory.exportType
-                }
+                };
+
+                return [exports, currExportsArr];
             };
 
             let state = states.start;
@@ -624,7 +663,7 @@ class StaticAnalyzer {
                             break;
                         }
 
-                        if('*'.charCodeAt(0) === currChar.charCodeAt(0)) {
+                        if ('*'.charCodeAt(0) === currChar.charCodeAt(0)) {
                             memory.exportType = '*';
                             state = states.from;
                             break;
@@ -760,6 +799,8 @@ class StaticAnalyzer {
                         break;
 
                     case states.let.afterEqual:
+                        i = skipBrackets(i);
+
                         if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
                             state = states.let.anything;
                             break;
@@ -798,6 +839,8 @@ class StaticAnalyzer {
                         break;
 
                     case states.const.afterEqual:
+                        i = skipBrackets(i);
+
                         if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
                             state = states.const.anything;
                             break;
@@ -836,7 +879,6 @@ class StaticAnalyzer {
                         if (this.source.substr(i, 4) === 'from') {
                             i += 4;
                             const url = this._commentsAndStrings[nextString(i)];
-                            console.log('url', url);
                             memory.from = this.source.substring(url[0], url[1]);
                             break;
                         }
@@ -858,12 +900,21 @@ class StaticAnalyzer {
         };
 
         const exports = [];
+        const exportsArr = {
+            names: [],
+            labels: []
+        };
+
         for (let i = 0; i < exportBeginnings.length; i++) {
-            let currExports = analizeExport(exportBeginnings[i]);
+            let currExports, currExportsArr;
+            [currExports, currExportsArr] = analizeExport(exportBeginnings[i]);
             exports.push(currExports);
+            exportsArr.names = exportsArr.names.concat(currExportsArr.names);
+            exportsArr.labels = exportsArr.labels.concat(currExportsArr.labels);
         }
 
         this.exports = exports;
+        this.exportsArr = exportsArr;
     }
 
 
