@@ -159,6 +159,7 @@ class StaticAnalyzer {
         const resTypes = [];
         const instances = [];
         const scopes = [[], []];
+        const scopeGraph = [];
 
         const scopeStack = [];
         let scopeStackSize = 0;
@@ -289,19 +290,35 @@ class StaticAnalyzer {
 
         const saveScope = (bracket) => {
 
+            // todo: make a debug flag for these things
             this._scopeString += String.fromCharCode(bracket);
-
+            console.log('scope ', scopeStack);
             if (bracket === '{'.charCodeAt(0)) {
+                // add new scope we just found to the graph
+                scopeGraph.push([]);
+                // check if there is a scope which contains it
+                if (scopeGraph[scopeStack[scopeStackSize - 1]]) {
+                    // push the current scope to its parent
+                    // note: scopes[0].length without -1 because \
+                    // we haven't yet added the current one
+                    scopeGraph[scopeStack[scopeStackSize - 1]].push(scopes[0].length);
+                }
+                // add both beginning and ending of the scope we found
+                // the ending is NaN because we will fill it in later
                 scopes[0].push(i);
                 scopes[1].push(NaN);
+                // check if our array has enough space to add an element
                 if (scopeStack.length < scopeStackSize) {
+                    // if it does not use .push
                     scopeStack.push(scopes[0].length - 1);
                 }
                 else {
+                    // otherwise just set the element we need
                     scopeStack[scopeStackSize] = scopes[0].length - 1;
                 }
                 scopeStackSize++;
             } else {
+                // change the value we put as NaN earlier
                 scopes[1][scopeStack[scopeStackSize - 1]] = i;
                 scopeStackSize--;
             }
@@ -432,6 +449,7 @@ class StaticAnalyzer {
         this._commentsAndStringsTypes = resTypes;
         this._commentsAndStringsAnalyzed = true;
         this._scopes = scopes;
+        this._scopeGraph = scopeGraph;
         //return res;
     }
 
