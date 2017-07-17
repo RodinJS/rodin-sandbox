@@ -29,6 +29,8 @@ export function/*   */ /**//**/*www() {
 
 export class X {}
 
+export {x1}/*1*/from /*asd1*/ 'asd1'
 export {x}/**/from /*asd*/ 'asd'
+export {x2}/*2*/from /*asd2*/ 'asd2'
 
 export * from 'uxt';

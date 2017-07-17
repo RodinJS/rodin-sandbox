@@ -489,7 +489,7 @@ class StaticAnalyzer {
         };
 
         const nextString = (j) => {
-            curCommentIndex = curCommentIndex || binarySearch(this._commentsAndStrings, j, true);
+            curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
 
             while (j < this.source.length) {
                 if (curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
@@ -513,9 +513,14 @@ class StaticAnalyzer {
         };
 
         const skipBrackets = (j) => {
+            let oldJ = j;
             const openingBracket = this.source.charCodeAt(j);
 
+            if (['{'.charCodeAt(0), '('.charCodeAt(0), '['.charCodeAt(0)].indexOf(openingBracket) === -1)
+                return oldJ;
+
             if (openingBracket === '{'.charCodeAt(0)) {
+                curCommentIndex = NaN;
                 return this._scopes[1][this._scopes[0].indexOf(j)];
             }
 
@@ -541,11 +546,12 @@ class StaticAnalyzer {
                 }
             }
 
-            return -1;
+            return oldJ;
         };
 
-        const analizeExport = (i) => {
+        const analizeExport = (i, exportIndex) => {
             i += 6;
+            const exportBeginning = i;
 
             const states = {
                 start: 0,
@@ -555,17 +561,12 @@ class StaticAnalyzer {
                     as: 12,
                     label: 13
                 },
-                let: {
-                    anything: 20,
-                    var: 21,
-                    afterEqual: 22
+                lcv: {
+                    anything: 61,
+                    var: 62,
+                    afterEqual: 63
                 },
-                const: {
-                    anything: 30,
-                    var: 31,
-                    afterEqual: 32
-                },
-                functionClass: {
+                fc: {
                     anything: 40,
                     var: 41
                 },
@@ -583,17 +584,23 @@ class StaticAnalyzer {
                 from: null
             };
 
-            const bracketVars = [];
-            const letVars = [];
-            const constVars = [];
-            let functionClass = null;
-
             const currExportsArr = {
+                exportIndexes: [],
+                exportBeginnings: [],
                 names: [],
-                labels: []
+                labels: [],
+                isBrackets: [],
+                isLet: [],
+                isConst: [],
+                isVar: [],
+                isClass: [],
+                isFunction: [],
+                isGeneratorFunction: [],
+                isAll: [],
+                from: [],
             };
 
-            const saveBracketVar = () => {
+            const saveVar = () => {
                 const name = memory.currVar.join('');
                 const label = memory.currLabelLength > 0 ? memory.currLabel.join('') : name;
 
@@ -602,45 +609,27 @@ class StaticAnalyzer {
                 memory.currVarLength = 0;
                 memory.currLabelLength = 0;
 
-                bracketVars.push({name, label});
+                currExportsArr.exportIndexes.push(exportIndex);
+                currExportsArr.exportBeginnings.push(exportBeginning);
                 currExportsArr.names.push(name);
-                currExportsArr.labels.push(label);
-            };
-
-            const saveLetVar = () => {
-                const name = memory.currVar.join('');
-
-                memory.currVar.fill(undefined);
-                memory.currVarLength = 0;
-
-                letVars.push({name, label: name});
-            };
-
-            const saveConstVar = () => {
-                const name = memory.currVar.join('');
-
-                memory.currVar.fill(undefined);
-                memory.currVarLength = 0;
-
-                constVars.push({name, label: name});
-            };
-
-            const saveFunctionVar = () => {
-                const name = memory.currVar.join('');
-                functionClass = {name, label: name};
+                currExportsArr.labels.push(label || name);
+                currExportsArr.isBrackets.push(memory.exportType === 'brackets');
+                currExportsArr.isLet.push(memory.exportType === 'let');
+                currExportsArr.isConst.push(memory.exportType === 'const');
+                currExportsArr.isVar.push(memory.exportType === 'var');
+                currExportsArr.isClass.push(memory.exportType === 'class');
+                currExportsArr.isFunction.push(memory.exportType === 'function');
+                currExportsArr.isGeneratorFunction.push(memory.exportType === 'function*');
+                currExportsArr.isAll.push(memory.exportType === '*');
+                currExportsArr.from.push(memory.from);
             };
 
             const collectResults = () => {
-                const exports = {
-                    bracketVars,
-                    letVars,
-                    constVars,
-                    functionClass,
-                    from: memory.from,
-                    type: memory.exportType
-                };
+                if (memory.from)
+                    for (let i = 0; i < currExportsArr.from.length; i++)
+                        currExportsArr.from[i] = memory.from
 
-                return [exports, currExportsArr];
+                return currExportsArr;
             };
 
             let state = states.start;
@@ -666,18 +655,28 @@ class StaticAnalyzer {
                         if ('*'.charCodeAt(0) === currChar.charCodeAt(0)) {
                             memory.exportType = '*';
                             state = states.from;
+                            saveVar();
                             break;
                         }
 
                         if ('let' === this.source.substr(i, 3) && jsDelimiterChars.indexOf(this.source.charAt(i + 3)) !== -1) {
+                            memory.exportType = 'let';
                             i += 2;
-                            state = states.let.anything;
+                            state = states.lcv.anything;
+                            break;
+                        }
+
+                        if ('var' === this.source.substr(i, 3) && jsDelimiterChars.indexOf(this.source.charAt(i + 3)) !== -1) {
+                            memory.exportType = 'var';
+                            i += 2;
+                            state = states.lcv.anything;
                             break;
                         }
 
                         if ('const' === this.source.substr(i, 5) && jsDelimiterChars.indexOf(this.source.charAt(i + 5)) !== -1) {
+                            memory.exportType = 'const';
                             i += 4;
-                            state = states.const.anything;
+                            state = states.lcv.anything;
                             break;
                         }
 
@@ -690,14 +689,14 @@ class StaticAnalyzer {
                                 memory.exportType = 'function*';
                             }
 
-                            state = states.functionClass.anything;
+                            state = states.fc.anything;
                             break;
                         }
 
                         if ('class' === this.source.substr(i, 5) && jsDelimiterChars.indexOf(this.source.charAt(i + 5)) !== -1) {
                             memory.exportType = 'class';
                             i += 4;
-                            state = states.functionClass.anything;
+                            state = states.fc.anything;
                             break;
                         }
 
@@ -728,109 +727,66 @@ class StaticAnalyzer {
                         }
 
                         if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
-                            saveBracketVar();
+                            saveVar();
                             i++;
                             state = states.brackets.anything;
                             break;
                         }
 
                         if ('}'.charCodeAt(0) === currChar.charCodeAt(0)) {
-                            saveBracketVar();
-                            // state = states.end;
+                            saveVar();
                             state = states.from;
                             break;
                         }
 
-                        memory.currVar[memory.currVarLength] = currChar;
-                        memory.currVarLength++;
+                        memory.currVar[memory.currVarLength++] = currChar;
                         break;
 
                     case states.brackets.label:
                         i = skipNonCode(i);
 
                         if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
-                            saveBracketVar();
+                            saveVar();
                             i++;
                             state = states.brackets.anything;
                             break;
                         }
 
                         if ('}'.charCodeAt(0) === currChar.charCodeAt(0)) {
-                            saveBracketVar();
-                            // state = states.end;
+                            saveVar();
                             state = states.from;
                             break;
                         }
 
-                        memory.currLabel[memory.currLabelLength] = currChar;
-                        memory.currLabelLength++;
+                        memory.currLabel[memory.currLabelLength++] = currChar;
                         break;
 
 
                     /**
                      * EXPORT TYPE Let
-                     */
-                    case states.let.anything:
-                        memory.exportType = 'let';
-                        i -= 1;
-                        state = states.let.var;
-                        break;
-
-                    case states.let.var:
-                        if ('='.charCodeAt(0) === currChar.charCodeAt(0)) {
-                            saveLetVar();
-                            state = states.let.afterEqual;
-                            break;
-                        }
-
-                        if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
-                            saveLetVar();
-                            state = states.let.anything;
-                            break;
-                        }
-
-                        if (';'.charCodeAt(0) === currChar.charCodeAt(0)) {
-                            saveLetVar();
-                            state = states.end;
-                            break;
-                        }
-
-                        memory.currVar[memory.currVarLength++] = currChar;
-                        break;
-
-                    case states.let.afterEqual:
-                        i = skipBrackets(i);
-
-                        if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
-                            state = states.let.anything;
-                            break;
-                        }
-
-                        if (';'.charCodeAt(0) === currChar.charCodeAt(0)) {
-                            state = states.end;
-                            break;
-                        }
-
-                        break;
-
-                    /**
                      * EXPORT TYPE Const
+                     * EXPORT TYPE Var
                      */
-                    case states.const.anything:
-                        memory.exportType = 'const';
+                    case states.lcv.anything:
                         i -= 1;
-                        state = states.const.var;
+                        state = states.lcv.var;
                         break;
 
-                    case states.const.var:
+                    case states.lcv.var:
                         if ('='.charCodeAt(0) === currChar.charCodeAt(0)) {
-                            saveConstVar();
-                            state = states.const.afterEqual;
+                            saveVar();
+                            state = states.lcv.afterEqual;
+                            break;
+                        }
+
+                        if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            saveVar();
+                            state = states.lcv.anything;
                             break;
                         }
 
                         if (';'.charCodeAt(0) === currChar.charCodeAt(0)) {
-                            saveConstVar();
+                            saveVar();
                             state = states.end;
                             break;
                         }
@@ -838,11 +794,11 @@ class StaticAnalyzer {
                         memory.currVar[memory.currVarLength++] = currChar;
                         break;
 
-                    case states.const.afterEqual:
+                    case states.lcv.afterEqual:
                         i = skipBrackets(i);
 
                         if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
-                            state = states.const.anything;
+                            state = states.lcv.anything;
                             break;
                         }
 
@@ -852,19 +808,18 @@ class StaticAnalyzer {
                         }
 
                         break;
-
 
                     /**
                      * EXPORT TYPE Function
                      */
-                    case states.functionClass.anything:
+                    case states.fc.anything:
                         i -= 1;
-                        state = states.functionClass.var;
+                        state = states.fc.var;
                         break;
 
-                    case states.functionClass.var:
+                    case states.fc.var:
                         if (memory.nonCodeSkipped || '('.charCodeAt(0) === currChar.charCodeAt(0)) {
-                            saveFunctionVar();
+                            saveVar();
                             state = states.end;
                             break;
                         }
@@ -880,7 +835,6 @@ class StaticAnalyzer {
                             i += 4;
                             const url = this._commentsAndStrings[nextString(i)];
                             memory.from = this.source.substring(url[0], url[1]);
-                            break;
                         }
 
                         state = states.end;
@@ -899,21 +853,30 @@ class StaticAnalyzer {
             return collectResults();
         };
 
-        const exports = [];
         const exportsArr = {
+            exportIndexes: [],
+            exportBeginnings: [],
             names: [],
-            labels: []
+            labels: [],
+            isBrackets: [],
+            isLet: [],
+            isVar: [],
+            isConst: [],
+            isClass: [],
+            isFunction: [],
+            isGeneratorFunction: [],
+            isAll: [],
+            from: []
         };
 
         for (let i = 0; i < exportBeginnings.length; i++) {
-            let currExports, currExportsArr;
-            [currExports, currExportsArr] = analizeExport(exportBeginnings[i]);
-            exports.push(currExports);
-            exportsArr.names = exportsArr.names.concat(currExportsArr.names);
-            exportsArr.labels = exportsArr.labels.concat(currExportsArr.labels);
+            curCommentIndex = NaN;
+            let currExportsArr = analizeExport(exportBeginnings[i], i);
+            for (let j in currExportsArr) {
+                exportsArr[j] = exportsArr[j].concat(currExportsArr[j]);
+            }
         }
 
-        this.exports = exports;
         this.exportsArr = exportsArr;
     }
 
@@ -959,4 +922,28 @@ class StaticAnalyzer {
 
         container.innerHTML = res.replace(/\n/g, '<br>').replace(/\s/g, '&nbsp;');
     }
+
+    visualizeExports() {
+        const reshape = () => {
+
+            const len = this.exportsArr.names.length;
+
+            const ret = [];
+
+            for (let i = 0; i < len; i++) {
+                let col = {};
+
+                for (let key in this.exportsArr) {
+                    col[key] = this.exportsArr[key][i]
+                }
+
+                ret.push(col)
+            }
+
+            return ret;
+        };
+
+        console.table(reshape())
+    }
+
 }
