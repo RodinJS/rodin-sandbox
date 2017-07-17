@@ -292,7 +292,6 @@ class StaticAnalyzer {
 
             // todo: make a debug flag for these things
             this._scopeString += String.fromCharCode(bracket);
-            console.log('scope ', scopeStack);
             if (bracket === '{'.charCodeAt(0)) {
                 // add new scope we just found to the graph
                 scopeGraph.push([]);
