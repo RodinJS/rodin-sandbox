@@ -25,6 +25,10 @@ const runStuff = () => {
         a.findExports();
         res.push(`export analysis: ${Date.now() - t}`);
 
+        t = Date.now();
+        a.findImports();
+        res.push(`import analysis: ${Date.now() - t}`);
+
         // let count = 100;
         // while (count <= 100000) {
         //     let arr = [];

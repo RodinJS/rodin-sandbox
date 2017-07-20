@@ -469,6 +469,54 @@ class StaticAnalyzer {
         return binarySearch(this._commentsAndStrings, index) !== -1;
     }
 
+    skipNonCode(j, curCommentIndex = binarySearch(this._commentsAndStrings, j, true)) {
+        if(isNaN(curCommentIndex))
+            curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
+
+        while (j < this.source.length) {
+            if (curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
+                this._commentsAndStrings[curCommentIndex][0] <= j && j <= this._commentsAndStrings[curCommentIndex][1]) {
+
+                j = this._commentsAndStrings[curCommentIndex][1];
+                curCommentIndex++;
+                continue;
+            }
+
+            if (this.source.charCodeAt(j) <= 32) {
+                j++;
+                continue;
+            }
+
+            break;
+        }
+
+        return [j, curCommentIndex];
+    };
+
+    nextString(j) {
+        let curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
+
+        while (j < this.source.length) {
+            if (curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
+                this._commentsAndStrings[curCommentIndex][0] <= j && j <= this._commentsAndStrings[curCommentIndex][1] &&
+                (this._commentsAndStringsTypes[curCommentIndex] === 4 || this._commentsAndStringsTypes[curCommentIndex] === 5)) {
+
+                j = this._commentsAndStrings[curCommentIndex][1];
+                curCommentIndex++;
+                continue;
+            }
+
+            if (this.source.charCodeAt(j) <= 32) {
+                j++;
+                continue;
+            }
+
+            break;
+        }
+
+        return curCommentIndex;
+    };
+
     findExports() {
         const rx = /(?:^|\s|\/|\)|\[|;|{|})(export)(?={|\s|\/)/gm;
         let match;
@@ -482,28 +530,6 @@ class StaticAnalyzer {
         }
 
         let curCommentIndex = NaN;
-        const skipNonCode = (j) => {
-            curCommentIndex = curCommentIndex || binarySearch(this._commentsAndStrings, j, true);
-
-            while (j < this.source.length) {
-                if (curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
-                    this._commentsAndStrings[curCommentIndex][0] <= j && j <= this._commentsAndStrings[curCommentIndex][1]) {
-
-                    j = this._commentsAndStrings[curCommentIndex][1];
-                    curCommentIndex++;
-                    continue;
-                }
-
-                if (this.source.charCodeAt(j) <= 32) {
-                    j++;
-                    continue;
-                }
-
-                break;
-            }
-
-            return j;
-        };
 
         const nextString = (j) => {
             curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
@@ -550,7 +576,7 @@ class StaticAnalyzer {
 
             let stack = 1;
             while (++j < this.source.length) {
-                j = skipNonCode(j);
+                [j, curCommentIndex] = this.skipNonCode(j);
 
                 if (openingBracket === this.source.charCodeAt(j))
                     stack++;
@@ -652,12 +678,12 @@ class StaticAnalyzer {
             let state = states.start;
 
             while (i < this.source.length) {
-                let j = skipNonCode(i);
+                let j;
+                [j, curCommentIndex] = this.skipNonCode(i, curCommentIndex);
                 memory.nonCodeSkipped = i !== j;
                 i = j;
 
                 const currChar = this.source.charAt(i);
-
 
                 switch (state) {
                     /**
@@ -700,7 +726,8 @@ class StaticAnalyzer {
                         if ('function' === this.source.substr(i, 8) && jsDelimiterChars.indexOf(this.source.charAt(i + 8)) !== -1) {
                             memory.exportType = 'function';
                             i += 7;
-                            let j = skipNonCode(i + 1);
+                            let j;
+                            [j, curCommentIndex] = this.skipNonCode(i + 1, curCommentIndex);
                             if ('*'.charCodeAt(0) === this.source.charCodeAt(j)) {
                                 i = j;
                                 memory.exportType = 'function*';
@@ -735,7 +762,7 @@ class StaticAnalyzer {
                         break;
 
                     case states.brackets.var:
-                        i = skipNonCode(i);
+                        [i, curCommentIndex] = this.skipNonCode(i, curCommentIndex);
 
                         if (memory.nonCodeSkipped && 'a'.charCodeAt(0) === this.source.charCodeAt(i) && 's'.charCodeAt(0) === this.source.charCodeAt(i + 1)) {
                             i += 2;
@@ -760,7 +787,7 @@ class StaticAnalyzer {
                         break;
 
                     case states.brackets.label:
-                        i = skipNonCode(i);
+                        [i, curCommentIndex] = this.skipNonCode(i, curCommentIndex);
 
                         if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
                             saveVar();
@@ -870,7 +897,7 @@ class StaticAnalyzer {
             return collectResults();
         };
 
-        const exportsArr = {
+        const exports = {
             exportIndexes: [],
             exportBeginnings: [],
             names: [],
@@ -888,13 +915,278 @@ class StaticAnalyzer {
 
         for (let i = 0; i < exportBeginnings.length; i++) {
             curCommentIndex = NaN;
-            let currExportsArr = analizeExport(exportBeginnings[i], i);
-            for (let j in currExportsArr) {
-                exportsArr[j] = exportsArr[j].concat(currExportsArr[j]);
+            let currExports = analizeExport(exportBeginnings[i], i);
+            for (let j in currExports) {
+                exports[j] = exports[j].concat(currExports[j]);
             }
         }
 
-        this.exportsArr = exportsArr;
+        this.exports = exports;
+    }
+
+    findImports() {
+        const rx = /(?:^|\s|\/|\)|\[|;|{|})(import)(?={|\s|\/)/gm;
+        let match;
+        const importBeginnings = [];
+        while ((match = rx.exec(this.source))) {
+            let curPos = match[0].indexOf('import') + match.index;
+            if (this.isCommentOrString(curPos)) {
+                continue;
+            }
+            importBeginnings.push(curPos);
+        }
+
+        let curCommentIndex = NaN;
+
+        const analizeImport = (i, exportIndex) => {
+            i += 6;
+            const importBeginning = i;
+
+            const states = {
+                start: 0,
+                brackets: {
+                    anything: 10,
+                    var: 11,
+                    as: 12,
+                    label: 13
+                },
+                default: {
+                    anything: 61,
+                    var: 62
+                },
+                all: {
+                    anything: 71,
+                    var: 72
+                },
+                end: 100
+            };
+
+            const memory = {
+                currVar: new Array(1000),
+                currVarLength: 0,
+                currLabel: new Array(1000),
+                currLabelLength: 0,
+                importType: '',
+                nonCodeSkipped: false,
+                from: null
+            };
+
+            const currImportsArr = {
+                importIndexes: [],
+                importBeginnings: [],
+                names: [],
+                labels: [],
+                isBrackets: [],
+                isDefault: [],
+                isAll: [],
+                from: [],
+            };
+
+            const saveVar = () => {
+                const name = memory.currVar.join('');
+                const label = memory.currLabelLength > 0 ? memory.currLabel.join('') : name;
+
+                memory.currVar.fill(undefined);
+                memory.currLabel.fill(undefined);
+                memory.currVarLength = 0;
+                memory.currLabelLength = 0;
+
+                currImportsArr.importIndexes.push(exportIndex);
+                currImportsArr.importBeginnings.push(importBeginning);
+                currImportsArr.names.push(name);
+                currImportsArr.labels.push(label || name);
+                currImportsArr.isBrackets.push(memory.importType === 'brackets');
+                currImportsArr.isDefault.push(memory.importType === 'default');
+                currImportsArr.isAll.push(memory.importType === '*');
+                currImportsArr.from.push(memory.from);
+            };
+
+            const collectResults = () => {
+                if (memory.from)
+                    for (let i = 0; i < currImportsArr.from.length; i++)
+                        currImportsArr.from[i] = memory.from
+
+                return currImportsArr;
+            };
+
+            let state = states.start;
+
+            while (i < this.source.length) {
+                let j;
+                [j, curCommentIndex] = this.skipNonCode(i, curCommentIndex);
+                memory.nonCodeSkipped = i !== j;
+                i = j;
+
+                const currChar = this.source.charAt(i);
+
+                switch (state) {
+                    /**
+                     * Checks import type
+                     */
+                    case states.start:
+                        if ('{'.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            state = states.brackets.anything;
+                            break;
+                        }
+
+                        if ('*'.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            state = states.all.anything;
+                            break;
+                        }
+
+                        if (this.source.substr(i, 4) === 'from') {
+                            i += 4;
+                            const url = this._commentsAndStrings[this.nextString(i)];
+                            memory.from = this.source.substring(url[0], url[1]);
+                            state = states.end;
+                            break;
+                        }
+
+                        memory.importType = 'default';
+                        state = states.default.anything;
+                        break;
+
+                    /**
+                     * IMPORT TYPE Brackets
+                     */
+                    case states.brackets.anything:
+                        memory.importType = 'brackets';
+                        i--;
+                        state = states.brackets.var;
+                        break;
+
+                    case states.brackets.var:
+                        if (memory.nonCodeSkipped && 'a'.charCodeAt(0) === this.source.charCodeAt(i) && 's'.charCodeAt(0) === this.source.charCodeAt(i + 1)) {
+                            i += 2;
+                            state = states.brackets.label;
+                            break;
+                        }
+
+                        if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            saveVar();
+                            i++;
+                            state = states.brackets.anything;
+                            break;
+                        }
+
+                        if ('}'.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            saveVar();
+                            state = states.start;
+                            break;
+                        }
+
+                        memory.currVar[memory.currVarLength++] = currChar;
+                        break;
+
+                    case states.brackets.label:
+                        [i, curCommentIndex] = this.skipNonCode(i, curCommentIndex);
+
+                        if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            saveVar();
+                            i++;
+                            state = states.brackets.anything;
+                            break;
+                        }
+
+                        if ('}'.charCodeAt(0) === currChar.charCodeAt(0)) {
+                            saveVar();
+                            state = states.start;
+                            break;
+                        }
+
+                        memory.currLabel[memory.currLabelLength++] = currChar;
+                        break;
+
+
+                    /**
+                     * IMPORT TYPE Default
+                     */
+                    case states.default.anything:
+                        i -= 1;
+                        state = states.default.var;
+                        break;
+
+                    case states.default.var:
+                        if (jsDelimiterChars.indexOf(this.source.charAt(i)) !== -1) {
+                            saveVar();
+                            state = states.start;
+                            break;
+                        }
+
+                        if (memory.nonCodeSkipped) {
+                            saveVar();
+                            i -= 1;
+                            state = states.start;
+                            break;
+                        }
+
+                        memory.currVar[memory.currVarLength++] = currChar;
+                        break;
+
+                    /**
+                     * IMPORT TYPE * as obj
+                     */
+                    case states.all.anything:
+                        memory.exportType = '*';
+                        [i, curCommentIndex] = this.skipNonCode(i, curCommentIndex);
+                        if (this.source.substr(i, 2) === 'as') {
+                            i += 2;
+                            state = states.all.var;
+                            break;
+                        }
+
+                        break;
+
+                    case states.all.var:
+                        if (','.charCodeAt(i) === currChar.charCodeAt(i)) {
+                            saveVar();
+                            state = states.start;
+                            break;
+                        }
+
+                        if (memory.nonCodeSkipped) {
+                            saveVar();
+                            i -= 1;
+                            state = states.start;
+                            break;
+                        }
+
+                        memory.currVar[memory.currVarLength++] = currChar;
+                        break;
+
+                    /**
+                     * Return results
+                     */
+                    case states.end:
+                        return collectResults();
+                }
+
+                i++;
+            }
+
+            return collectResults();
+        };
+
+        const imports = {
+            importIndexes: [],
+            importBeginnings: [],
+            names: [],
+            labels: [],
+            isBrackets: [],
+            isDefault: [],
+            isAll: [],
+            from: [],
+        };
+
+        for (let i = 0; i < importBeginnings.length; i++) {
+            curCommentIndex = NaN;
+            let currExports = analizeImport(importBeginnings[i], i);
+            for (let j in currExports) {
+                imports[j] = imports[j].concat(currExports[j]);
+            }
+        }
+
+        this.imports = imports;
     }
 
 
@@ -943,15 +1235,38 @@ class StaticAnalyzer {
     visualizeExports() {
         const reshape = () => {
 
-            const len = this.exportsArr.names.length;
+            const len = this.exports.names.length;
 
             const ret = [];
 
             for (let i = 0; i < len; i++) {
                 let col = {};
 
-                for (let key in this.exportsArr) {
-                    col[key] = this.exportsArr[key][i]
+                for (let key in this.exports) {
+                    col[key] = this.exports[key][i]
+                }
+
+                ret.push(col)
+            }
+
+            return ret;
+        };
+
+        console.table(reshape())
+    }
+
+    visualizeImports() {
+        const reshape = () => {
+
+            const len = this.imports.names.length;
+
+            const ret = [];
+
+            for (let i = 0; i < len; i++) {
+                let col = {};
+
+                for (let key in this.imports) {
+                    col[key] = this.imports[key][i]
                 }
 
                 ret.push(col)
