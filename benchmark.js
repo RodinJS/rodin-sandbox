@@ -49,7 +49,7 @@ const runStuff = () => {
         // res.push(`Analysing scopes takes: ${Date.now() - t}`);
 
         console.log(res.join('\n'));
-        //a.visualizeCode(document.getElementById('codeVisualization'));
+        a.visualizeCode(document.getElementById('codeVisualization'));
         //alert(res.join('\n'));
         window.a = a;
     }, false);
