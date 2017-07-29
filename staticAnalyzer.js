@@ -1227,6 +1227,7 @@ class StaticAnalyzer {
 
         const declarationTypes = ['var', 'let', 'class', 'const', 'function', 'function*'];
         const isDeclaration = (index) => {
+            // we need to check for commas not just keywords for multiple definition variables
             index = backwardsSkipNonCode(index);
             let i = 0;
             let curLength = 0;
