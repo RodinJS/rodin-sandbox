@@ -473,6 +473,7 @@ class StaticAnalyzer {
         return binarySearch(this._commentsAndStrings, index) !== -1;
     }
 
+    // todo: add a direction to this
     skipNonCode(j, curCommentIndex = binarySearch(this._commentsAndStrings, j, true)) {
         if (isNaN(curCommentIndex))
             curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
@@ -1198,10 +1199,10 @@ class StaticAnalyzer {
         // to make it easier to port for 'var's
         const opening = binarySearchLowerBound(this._scopes[0], index);
         const closing = this._closingScopesSorted[1][binarySearchUpperBound(this._closingScopesSorted[0], index)];
-        if (!this._lca) {
-            this._lca = getLCA(this._scopeGraph);
+        if (!this._scopeGraphFunctions) {
+            this._scopeGraphFunctions = getLCA(this._scopeGraph);
         }
-        return this._lca(opening, closing);
+        return this._scopeGraphFunctions.lca(opening, closing);
     }
 
     findReferences(variable) {
@@ -1210,13 +1211,69 @@ class StaticAnalyzer {
             + ')(?=\\s|$|=|\\+|\\.|\\-|\\/|\\*|\\%|\\(|\\)|\\[|\\]|;|:|{|}|\\n|\\r|,|!|&|\\||\\^|\\?|>|<)', 'gm');
         let match;
         const matches = [];
-        const start = Date.now();
+
+        const backwardsSkipNonCode = (j) => {
+            let resI = binarySearch(this._commentsAndStrings, j, true);
+            while (j >= 0 && (this.source.charCodeAt(j) <= 32 || /* || this.source.charCodeAt(j) === 10 || /!*this.source.charCodeAt(j) === 9 ||*!/*/
+                (resI >= 0 && resI < this._commentsAndStrings.length && this._commentsAndStrings[resI][0] < j && this._commentsAndStrings[resI][1] > j))) {
+                j--;
+                if (resI >= 0 && resI < this._commentsAndStrings.length && this._commentsAndStrings[resI][0] < j && this._commentsAndStrings[resI][1] > j) {
+                    j = this._commentsAndStrings[resI][0] - 1;
+                    resI--;
+                }
+            }
+            return j;
+        };
+
+        const declarationTypes = ['var', 'let', 'class', 'const', 'function', 'function*'];
+        const isDeclaration = (index) => {
+            index = backwardsSkipNonCode(index);
+            let i = 0;
+            let curLength = 0;
+            const len = declarationTypes.length;
+            let cur = '';
+            while (i < len) {
+                if (curLength != declarationTypes[i].length) {
+                    curLength = declarationTypes[i].length;
+                    cur = this.source.substr(index - curLength + 1, curLength);
+                }
+                if (cur === declarationTypes[i]) {
+                    return true;
+                }
+                i++;
+            }
+            return false;
+        };
+
+        // we really need a stack only to be able to link variables from nested scopes to each other
+        // for import export purpuses we dont need this at all, we can just check if we are in a global scope
+        // or not, and proceed accordingly.
+        // const declarationScopeStack = [];
+        // so lets just go with the last variable
+        let lastDeclarationScope = null;
+
+
         while ((match = rx.exec(this.source))) {
+            const index = match.index;
+            const scope = this.findScope(index);
+
+            if (lastDeclarationScope !== null &&
+                lastDeclarationScope !== scope &&
+                this._scopeGraphFunctions.isParent(lastDeclarationScope, scope)) {
+                continue;
+            }
+            else {
+                lastDeclarationScope = null;
+            }
+
+            if (isDeclaration(index)) {
+                console.log(`Found declaration of ${variable} at ${index} scope ${scope}`);
+                // declarationScopeStack.push(scope);
+                lastDeclarationScope = scope;
+            }
             matches.push(match.index);
         }
 
-
-        console.log("findReferences", Date.now() - start);
         console.log(matches);
     }
 

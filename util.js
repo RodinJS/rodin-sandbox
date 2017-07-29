@@ -46,6 +46,12 @@ const getLog = (n) => {
     return res;
 };
 
+/**
+ * rewrite this as a normal graph class!!!!!
+ * @param graph
+ * @return {[null,null]}
+ */
+
 const getLCA = (graph) => {
     const n = graph.length;
 
@@ -91,5 +97,5 @@ const getLCA = (graph) => {
         return up[a][0];
     };
 
-    return lca;
+    return {lca: lca, isParent: isParent};
 };
