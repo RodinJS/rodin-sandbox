@@ -1225,10 +1225,21 @@ class StaticAnalyzer {
             return j;
         };
 
-        const declarationTypes = ['var', 'let', 'class', 'const', 'function', 'function*'];
+        // might be a bug if there is a = somethingsomethingfunction* x, we will mistake this for a definition
+        // probably need to check the other side too
+        const declarationTypes = ['var', 'let', 'const', 'class', 'function', 'function*'];
+        const isMultivariable = [true, true, true, false, false, false];
+
         const isDeclaration = (index) => {
             // we need to check for commas not just keywords for multiple definition variables
             index = backwardsSkipNonCode(index);
+
+            // multivariable case
+            if (this.source.charCodeAt(index) === ','.charCodeAt(0)) {
+                // todo: go back until var/let/const...
+                // todo: gor has this code somewhere, find it
+                // todo: put it here :D
+            }
             let i = 0;
             let curLength = 0;
             const len = declarationTypes.length;
