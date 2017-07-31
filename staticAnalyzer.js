@@ -521,6 +521,43 @@ class StaticAnalyzer {
         return [j, curCommentIndex];
     };
 
+    skipBrackets (j, curCommentIndex = binarySearch(this._commentsAndStrings, j, true)) {
+        let oldJ = j;
+        const openingBracket = this.source.charCodeAt(j);
+
+        if (['{'.charCodeAt(0), '('.charCodeAt(0), '['.charCodeAt(0)].indexOf(openingBracket) === -1)
+            return [oldJ, curCommentIndex];
+
+        if (openingBracket === '{'.charCodeAt(0)) {
+            curCommentIndex = NaN;
+            return this._scopes[1][this._scopes[0].indexOf(j)];
+        }
+
+        let closingBracket;
+        if (openingBracket === '('.charCodeAt(0))
+            closingBracket = ')'.charCodeAt(0);
+
+        if (openingBracket === '['.charCodeAt(0))
+            closingBracket = ']'.charCodeAt(0);
+
+        let stack = 1;
+        while (++j < this.source.length) {
+            [j, curCommentIndex] = this.skipNonCode(j);
+
+            if (openingBracket === this.source.charCodeAt(j))
+                stack++;
+
+            if (closingBracket === this.source.charCodeAt(j)) {
+                stack--;
+
+                if (stack === 0)
+                    return [j, curCommentIndex];
+            }
+        }
+
+        return [oldJ, curCommentIndex];
+    };
+
     getWordFromIndex(i) {
         if(jsDelimiterChars.indexOf(this.source.charAt(i)) !== -1)
             return [NaN, NaN];
@@ -608,42 +645,42 @@ class StaticAnalyzer {
             return curCommentIndex;
         };
 
-        const skipBrackets = (j) => {
-            let oldJ = j;
-            const openingBracket = this.source.charCodeAt(j);
-
-            if (['{'.charCodeAt(0), '('.charCodeAt(0), '['.charCodeAt(0)].indexOf(openingBracket) === -1)
-                return oldJ;
-
-            if (openingBracket === '{'.charCodeAt(0)) {
-                curCommentIndex = NaN;
-                return this._scopes[1][this._scopes[0].indexOf(j)];
-            }
-
-            let closingBracket;
-            if (openingBracket === '('.charCodeAt(0))
-                closingBracket = ')'.charCodeAt(0);
-
-            if (openingBracket === '['.charCodeAt(0))
-                closingBracket = ']'.charCodeAt(0);
-
-            let stack = 1;
-            while (++j < this.source.length) {
-                [j, curCommentIndex] = this.skipNonCode(j);
-
-                if (openingBracket === this.source.charCodeAt(j))
-                    stack++;
-
-                if (closingBracket === this.source.charCodeAt(j)) {
-                    stack--;
-
-                    if (stack === 0)
-                        return j;
-                }
-            }
-
-            return oldJ;
-        };
+        // const skipBrackets = (j) => {
+        //     let oldJ = j;
+        //     const openingBracket = this.source.charCodeAt(j);
+        //
+        //     if (['{'.charCodeAt(0), '('.charCodeAt(0), '['.charCodeAt(0)].indexOf(openingBracket) === -1)
+        //         return oldJ;
+        //
+        //     if (openingBracket === '{'.charCodeAt(0)) {
+        //         curCommentIndex = NaN;
+        //         return this._scopes[1][this._scopes[0].indexOf(j)];
+        //     }
+        //
+        //     let closingBracket;
+        //     if (openingBracket === '('.charCodeAt(0))
+        //         closingBracket = ')'.charCodeAt(0);
+        //
+        //     if (openingBracket === '['.charCodeAt(0))
+        //         closingBracket = ']'.charCodeAt(0);
+        //
+        //     let stack = 1;
+        //     while (++j < this.source.length) {
+        //         [j, curCommentIndex] = this.skipNonCode(j);
+        //
+        //         if (openingBracket === this.source.charCodeAt(j))
+        //             stack++;
+        //
+        //         if (closingBracket === this.source.charCodeAt(j)) {
+        //             stack--;
+        //
+        //             if (stack === 0)
+        //                 return j;
+        //         }
+        //     }
+        //
+        //     return oldJ;
+        // };
 
         const analizeExport = (i, exportIndex) => {
             i += 6;
@@ -892,7 +929,7 @@ class StaticAnalyzer {
                         break;
 
                     case states.lcv.afterEqual:
-                        i = skipBrackets(i);
+                        [i, curCommentIndex] = this.skipBrackets(i, curCommentIndex);
 
                         if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
                             state = states.lcv.anything;
