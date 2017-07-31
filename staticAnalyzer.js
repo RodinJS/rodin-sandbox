@@ -104,6 +104,7 @@ const reduce = (source, needles) => {
 
 const jsDelimiterChars = ['=', '+', '-', '/', '*', '%', '(', ')', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?', ' '];
 
+
 class StaticAnalyzer {
     constructor(source) {
         this.source = source;
@@ -199,7 +200,7 @@ class StaticAnalyzer {
         const skipNonCode = (j) => {
             let resI = res.length - 1;
             while (j >= 0 && (this.source.charCodeAt(j) <= 32 || /* || this.source.charCodeAt(j) === 10 || /!*this.source.charCodeAt(j) === 9 ||*!/*/
-                (resI >= 0 && res[resI][0] < j && res[resI][1] > j))) {
+            (resI >= 0 && res[resI][0] < j && res[resI][1] > j))) {
                 j--;
                 if (resI >= 0 && res[resI][0] < j && res[resI][1] > j) {
                     j = res[resI][0] - 1;
@@ -277,19 +278,41 @@ class StaticAnalyzer {
             return true;
         };
 
-        const regexSuffixCheck = () => {
-            let j = i + 1;
-            while (j < length && (this.source.charCodeAt(j) === 32 || this.source.charCodeAt(j) === 10)) {
-                j++;
-            }
+        const es5Scopes = ['function', 'function*', '=>'];
 
-            if (charsAfterRegex.indexOf(this.source.charAt(j)) === -1) {
-                return false;
+        const sourceContainsFrom = (arr, j) => {
+            const len = arr.length;
+            let i = 0;
+            let cur = '';
+            let curLength = 0;
+            while (i < len) {
+                if (curLength !== arr[i].length) {
+                    curLength = arr[i].length;
+                    cur = this.source.substr(j - arr[i].length + 1, arr[i].length);
+                }
+                if (cur === arr[i]) {
+                    return i;
+                }
+
+                i++;
             }
-            return true;
+            return -1;
         };
 
         const saveScope = (bracket) => {
+
+            let scopeType = StaticAnalyzer.scopeTypes.es6;
+
+            let j = skipNonCode(i);
+
+            // probably also save the type for further use
+            if (sourceContainsFrom(es5Scopes, j) !== -1) {
+                // a = function(){}
+                scopeType = StaticAnalyzer.scopeTypes.es5;
+            } else {
+
+            }
+
 
             // todo: make a debug flag for these things
             this._scopeString += String.fromCharCode(bracket);
@@ -1215,7 +1238,7 @@ class StaticAnalyzer {
         const backwardsSkipNonCode = (j) => {
             let resI = binarySearch(this._commentsAndStrings, j, true);
             while (j >= 0 && (this.source.charCodeAt(j) <= 32 || /* || this.source.charCodeAt(j) === 10 || /!*this.source.charCodeAt(j) === 9 ||*!/*/
-                (resI >= 0 && resI < this._commentsAndStrings.length && this._commentsAndStrings[resI][0] < j && this._commentsAndStrings[resI][1] > j))) {
+            (resI >= 0 && resI < this._commentsAndStrings.length && this._commentsAndStrings[resI][0] < j && this._commentsAndStrings[resI][1] > j))) {
                 j--;
                 if (resI >= 0 && resI < this._commentsAndStrings.length && this._commentsAndStrings[resI][0] < j && this._commentsAndStrings[resI][1] > j) {
                     j = this._commentsAndStrings[resI][0] - 1;
@@ -1363,3 +1386,5 @@ class StaticAnalyzer {
     }
 
 }
+
+StaticAnalyzer.scopeTypes = {es5: 0, es6: 1};
