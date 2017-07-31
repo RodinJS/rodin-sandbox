@@ -1,21 +1,12 @@
 {
-    let a = 10;
-    {
-        let a = 20;
-        a++;
+    let x = 10, y = 20;
+
+    function f() {
+        let x = 30;
+
+        x = 5;
     }
 
-
-    {
-        function a() {
-
-        }
-
-        if (a){
-            true;
-        }
-
-    }
-    a = 4;
-    a++;
+    x += 5;
+    x = 6;
 }

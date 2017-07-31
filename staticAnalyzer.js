@@ -521,6 +521,31 @@ class StaticAnalyzer {
         return [j, curCommentIndex];
     };
 
+    getWordFromIndex(i) {
+        if(jsDelimiterChars.indexOf(this.source.charAt(i)) !== -1)
+            return [NaN, NaN];
+
+        if(this.isCommentOrString(i))
+            return [NaN, NaN];
+
+        let start = i;
+        let end = i;
+
+        let currChar = this.source.charAt(end);
+        while(jsDelimiterChars.indexOf(currChar) === -1) {
+            end ++;
+            currChar = this.source.charAt(end);
+        }
+
+        currChar = this.source.charAt(start);
+        while(jsDelimiterChars.indexOf(currChar) === -1) {
+            start --;
+            currChar = this.source.charAt(start);
+        }
+
+        return [start + 1, end];
+    }
+
     nextString(j) {
         let curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
 
@@ -1268,7 +1293,7 @@ class StaticAnalyzer {
             const len = declarationTypes.length;
             let cur = '';
             while (i < len) {
-                if (curLength != declarationTypes[i].length) {
+                if (curLength !== declarationTypes[i].length) {
                     curLength = declarationTypes[i].length;
                     cur = this.source.substr(index - curLength + 1, curLength);
                 }
