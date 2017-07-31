@@ -110,7 +110,11 @@ class StaticAnalyzer {
         this.source = source;
         this._commentsAndStringsAnalyzed = false;
         this._lca = null;
-        this._es6Scopes = [];
+        this._es6Scopes = null;
+        this._es5Scopes = null;
+
+        this._es6ScopeGraph = null;
+
 
         this._closingScopesSorted = [[], []];
     }
@@ -162,7 +166,9 @@ class StaticAnalyzer {
         const res = [];
         const resTypes = [];
         const instances = [];
-        const scopes = [[], []];
+        const es6Scopes = [[], []];
+        const es5Scopes = [[], []];
+
         const scopeGraph = [];
 
         const scopeStack = [];
@@ -342,33 +348,33 @@ class StaticAnalyzer {
                 // check if there is a scope which contains it
                 if (scopeGraph[scopeStack[scopeStackSize - 1]]) {
                     // push the current scope to its parent
-                    // note: scopes[0].length without -1 because \
+                    // note: es6Scopes[0].length without -1 because \
                     // we haven't yet added the current one
-                    scopeGraph[scopeStack[scopeStackSize - 1]].push(scopes[0].length);
+                    scopeGraph[scopeStack[scopeStackSize - 1]].push(es6Scopes[0].length);
                 }
                 // add both beginning and ending of the scope we found
                 // the ending is NaN because we will fill it in later
-                scopes[0].push(scopeStart);
-                scopes[1].push(NaN);
+                es6Scopes[0].push(scopeStart);
+                es6Scopes[1].push(NaN);
                 // check if our array has enough space to add an element
                 if (scopeStack.length < scopeStackSize) {
                     // if it does not use .push
-                    scopeStack.push(scopes[0].length - 1);
+                    scopeStack.push(es6Scopes[0].length - 1);
                 }
                 else {
                     // otherwise just set the element we need
-                    scopeStack[scopeStackSize] = scopes[0].length - 1;
+                    scopeStack[scopeStackSize] = es6Scopes[0].length - 1;
                 }
                 scopeStackSize++;
             } else {
                 // change the value we put as NaN earlier
-                scopes[1][scopeStack[scopeStackSize - 1]] = i;
+                es6Scopes[1][scopeStack[scopeStackSize - 1]] = i;
                 this._closingScopesSorted[0].push(i);
                 this._closingScopesSorted[1].push(scopeStack[scopeStackSize - 1]);
 
                 scopeStackSize--;
             }
-            //scopes.push([i, bracket]);
+            //es6Scopes.push([i, bracket]);
         };
 
         const saveResult = (end = i) => {
@@ -494,8 +500,8 @@ class StaticAnalyzer {
         this._commentsAndStrings = res;
         this._commentsAndStringsTypes = resTypes;
         this._commentsAndStringsAnalyzed = true;
-        this._es6Scopes = scopes;
-        this._scopeGraph = scopeGraph;
+        this._es6Scopes = es6Scopes;
+        this._es6ScopeGraph = scopeGraph;
         //return res;
     }
 
@@ -1268,7 +1274,7 @@ class StaticAnalyzer {
         const opening = binarySearchLowerBound(this._es6Scopes[0], index);
         const closing = this._closingScopesSorted[1][binarySearchUpperBound(this._closingScopesSorted[0], index)];
         if (!this._scopeGraphFunctions) {
-            this._scopeGraphFunctions = getLCA(this._scopeGraph);
+            this._scopeGraphFunctions = getLCA(this._es6ScopeGraph);
         }
         return this._scopeGraphFunctions.lca(opening, closing);
     }
