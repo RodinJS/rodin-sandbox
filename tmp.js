@@ -2,7 +2,7 @@ import def from 'asd.js'
 
 import {a} from 'b';
 
-import {c as asdsad, uxt, uxt2 as uxt3} from 'uxt.js'
+import{c as asdsad, uxt, uxt2 as uxt3}from'uxt.js'
 
 import def1, * as all from 'def1.js';
 
