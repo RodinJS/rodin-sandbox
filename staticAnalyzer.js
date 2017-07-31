@@ -110,6 +110,8 @@ class StaticAnalyzer {
         this.source = source;
         this._commentsAndStringsAnalyzed = false;
         this._lca = null;
+        this._es6Scopes = [];
+
         this._closingScopesSorted = [[], []];
     }
 
@@ -278,7 +280,7 @@ class StaticAnalyzer {
             return true;
         };
 
-        const es5Scopes = ['function', 'function*', '=>'];
+        const es5Scopes = ['function', 'function*'];
 
         const sourceContainsFrom = (arr, j) => {
             const len = arr.length;
@@ -299,24 +301,42 @@ class StaticAnalyzer {
             return -1;
         };
 
-        const saveScope = (bracket) => {
-
-            let scopeType = StaticAnalyzer.scopeTypes.es6;
-
-            let j = skipNonCode(i);
-
-            // probably also save the type for further use
-            if (sourceContainsFrom(es5Scopes, j) !== -1) {
-                // a = function(){}
-                scopeType = StaticAnalyzer.scopeTypes.es5;
-            } else {
-
-            }
-
+        const saveScope = (bracket, scopeType = StaticAnalyzer.scopeTypes.es6) => {
 
             // todo: make a debug flag for these things
             this._scopeString += String.fromCharCode(bracket);
+
+
             if (bracket === '{'.charCodeAt(0)) {
+
+                let scopeStart = i;
+                let j = skipNonCode(i);
+
+                // checking if the scope is a function
+                if (this.source.charCodeAt(j) === ')'.charCodeAt(0)) {
+                    [j, _] = this.skipBrackets(j);
+                    let tmpI = 0;
+                    while (tmpI++ < 1) {
+                        j = skipNonCode(j);
+                        const nextWord = this.getWordFromIndex(j);
+                        const cur = this.source.substring(nextWord[0], nextWord[1]);
+
+                        // const fcn = function(a,b,c){...}
+                        if (es5Scopes.indexOf(cur) !== -1) {
+                            scopeType = StaticAnalyzer.scopeTypes.es5;
+                            scopeStart = j;
+                        }
+                    }
+
+                } else if (this.source.charCodeAt(j) === '>'.charCodeAt(0) &&
+                    this.source.charCodeAt(j - 1) === '='.charCodeAt(0)) {
+                    // const fcn = ()=>{...}
+                    scopeType = StaticAnalyzer.scopeTypes.es5;
+                    j = skipNonCode(j);
+                    [j, _] = this.skipBrackets(j);
+                    scopeStart = j;
+                }
+
                 // add new scope we just found to the graph
                 scopeGraph.push([]);
                 // check if there is a scope which contains it
@@ -328,7 +348,7 @@ class StaticAnalyzer {
                 }
                 // add both beginning and ending of the scope we found
                 // the ending is NaN because we will fill it in later
-                scopes[0].push(i);
+                scopes[0].push(scopeStart);
                 scopes[1].push(NaN);
                 // check if our array has enough space to add an element
                 if (scopeStack.length < scopeStackSize) {
@@ -474,7 +494,7 @@ class StaticAnalyzer {
         this._commentsAndStrings = res;
         this._commentsAndStringsTypes = resTypes;
         this._commentsAndStringsAnalyzed = true;
-        this._scopes = scopes;
+        this._es6Scopes = scopes;
         this._scopeGraph = scopeGraph;
         //return res;
     }
@@ -521,7 +541,7 @@ class StaticAnalyzer {
         return [j, curCommentIndex];
     };
 
-    skipBrackets (j, curCommentIndex = binarySearch(this._commentsAndStrings, j, true)) {
+    skipBrackets(j, curCommentIndex = binarySearch(this._commentsAndStrings, j, true)) {
         let oldJ = j;
         const openingBracket = this.source.charCodeAt(j);
 
@@ -530,7 +550,7 @@ class StaticAnalyzer {
 
         if (openingBracket === '{'.charCodeAt(0)) {
             curCommentIndex = NaN;
-            return this._scopes[1][this._scopes[0].indexOf(j)];
+            return this._es6Scopes[1][this._es6Scopes[0].indexOf(j)];
         }
 
         let closingBracket;
@@ -559,24 +579,24 @@ class StaticAnalyzer {
     };
 
     getWordFromIndex(i) {
-        if(jsDelimiterChars.indexOf(this.source.charAt(i)) !== -1)
+        if (jsDelimiterChars.indexOf(this.source.charAt(i)) !== -1)
             return [NaN, NaN];
 
-        if(this.isCommentOrString(i))
+        if (this.isCommentOrString(i))
             return [NaN, NaN];
 
         let start = i;
         let end = i;
 
         let currChar = this.source.charAt(end);
-        while(jsDelimiterChars.indexOf(currChar) === -1) {
-            end ++;
+        while (jsDelimiterChars.indexOf(currChar) === -1) {
+            end++;
             currChar = this.source.charAt(end);
         }
 
         currChar = this.source.charAt(start);
-        while(jsDelimiterChars.indexOf(currChar) === -1) {
-            start --;
+        while (jsDelimiterChars.indexOf(currChar) === -1) {
+            start--;
             currChar = this.source.charAt(start);
         }
 
@@ -1245,7 +1265,7 @@ class StaticAnalyzer {
     findScope(index) {
         // make this more universal, keep maps for both opening and closing brackets, not just closing
         // to make it easier to port for 'var's
-        const opening = binarySearchLowerBound(this._scopes[0], index);
+        const opening = binarySearchLowerBound(this._es6Scopes[0], index);
         const closing = this._closingScopesSorted[1][binarySearchUpperBound(this._closingScopesSorted[0], index)];
         if (!this._scopeGraphFunctions) {
             this._scopeGraphFunctions = getLCA(this._scopeGraph);
@@ -1343,7 +1363,7 @@ class StaticAnalyzer {
     visualizeCode(container) {
         const cur = this.source;
         let res = '';
-        const scopes = [...this._scopes[0], ...this._scopes[1]];
+        const scopes = [...this._es6Scopes[0], ...this._es6Scopes[1]];
 
 
         for (let i = 0; i < cur.length; i++) {
