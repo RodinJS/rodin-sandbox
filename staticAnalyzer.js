@@ -535,28 +535,33 @@ class StaticAnalyzer {
     }
 
     // todo: add a direction to this
-    skipNonCode(j, curCommentIndex = binarySearch(this._commentsAndStrings, j, true)) {
+    skipNonCode(j, direction = 1, curCommentIndex = binarySearch(this._commentsAndStrings, j, true)) {
         if (isNaN(curCommentIndex))
             curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
 
-        while (j < this.source.length) {
+        while (j < this.source.length && j > 0) {
             if (curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
                 this._commentsAndStrings[curCommentIndex][0] <= j && j <= this._commentsAndStrings[curCommentIndex][1]) {
 
-                j = this._commentsAndStrings[curCommentIndex][1];
-                curCommentIndex++;
+                j = this._commentsAndStrings[curCommentIndex][direction === 1 ? 1 : 0];
+                curCommentIndex += direction;
                 continue;
             }
 
             if (this.source.charCodeAt(j) <= 32) {
-                j++;
+                j += direction;
                 continue;
             }
 
             break;
         }
 
-        return [j, curCommentIndex];
+        if (direction === 1) {
+            return [j, curCommentIndex];
+        }
+        else {
+            return [j + 1, curCommentIndex];
+        }
     };
 
     skipBrackets(j, curCommentIndex = binarySearch(this._commentsAndStrings, j, true)) {
@@ -594,7 +599,7 @@ class StaticAnalyzer {
         const direction = isOpening ? 1 : -1;
         j += direction;
         while (j < this.source.length && j >= 0) {
-            [j, curCommentIndex] = this.skipNonCode(j);
+            [j, curCommentIndex] = this.skipNonCode(j, isOpening ? 1 : -1);
 
             if (bracket === this.source.charCodeAt(j))
                 stack++;
@@ -786,7 +791,7 @@ class StaticAnalyzer {
 
             while (i < this.source.length) {
                 let j;
-                [j, curCommentIndex] = this.skipNonCode(i, curCommentIndex);
+                [j, curCommentIndex] = this.skipNonCode(i);
                 memory.nonCodeSkipped = i !== j;
                 i = j;
 
@@ -834,7 +839,7 @@ class StaticAnalyzer {
                             memory.exportType = 'function';
                             i += 7;
                             let j;
-                            [j, curCommentIndex] = this.skipNonCode(i + 1, curCommentIndex);
+                            [j, curCommentIndex] = this.skipNonCode(i + 1);
                             if ('*'.charCodeAt(0) === this.source.charCodeAt(j)) {
                                 i = j;
                                 memory.exportType = 'function*';
@@ -869,7 +874,7 @@ class StaticAnalyzer {
                         break;
 
                     case states.brackets.var:
-                        [i, curCommentIndex] = this.skipNonCode(i, curCommentIndex);
+                        [i, curCommentIndex] = this.skipNonCode(i);
 
                         if (memory.nonCodeSkipped && 'a'.charCodeAt(0) === this.source.charCodeAt(i) && 's'.charCodeAt(0) === this.source.charCodeAt(i + 1)) {
                             i += 2;
@@ -894,7 +899,7 @@ class StaticAnalyzer {
                         break;
 
                     case states.brackets.label:
-                        [i, curCommentIndex] = this.skipNonCode(i, curCommentIndex);
+                        [i, curCommentIndex] = this.skipNonCode(i);
 
                         if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
                             saveVar();
@@ -1120,7 +1125,7 @@ class StaticAnalyzer {
 
             while (i < this.source.length) {
                 let j;
-                [j, curCommentIndex] = this.skipNonCode(i, curCommentIndex);
+                [j, curCommentIndex] = this.skipNonCode(i);
                 memory.nonCodeSkipped = i !== j;
                 i = j;
 
@@ -1186,7 +1191,7 @@ class StaticAnalyzer {
                         break;
 
                     case states.brackets.label:
-                        [i, curCommentIndex] = this.skipNonCode(i, curCommentIndex);
+                        [i, curCommentIndex] = this.skipNonCode(i);
 
                         if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
                             saveVar();
@@ -1235,7 +1240,7 @@ class StaticAnalyzer {
                      */
                     case states.all.anything:
                         memory.exportType = '*';
-                        [i, curCommentIndex] = this.skipNonCode(i, curCommentIndex);
+                        [i, curCommentIndex] = this.skipNonCode(i);
                         if (this.source.substr(i, 2) === 'as') {
                             i += 2;
                             state = states.all.var;
