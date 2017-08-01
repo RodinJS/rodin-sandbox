@@ -642,13 +642,13 @@ class StaticAnalyzer {
         let end = i;
 
         let currChar = this.source.charAt(end);
-        while (jsDelimiterChars.indexOf(currChar) === -1) {
+        while (jsDelimiterChars.indexOf(currChar) === -1 && end < this.source.length) {
             end++;
             currChar = this.source.charAt(end);
         }
 
         currChar = this.source.charAt(start);
-        while (jsDelimiterChars.indexOf(currChar) === -1) {
+        while (jsDelimiterChars.indexOf(currChar) === -1 && start > 0) {
             start--;
             currChar = this.source.charAt(start);
         }
