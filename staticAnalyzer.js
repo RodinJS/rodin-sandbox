@@ -593,7 +593,7 @@ class StaticAnalyzer {
         let stack = 1;
         const direction = isOpening ? 1 : -1;
         j += direction;
-        while (j < this.source.length) {
+        while (j < this.source.length && j >= 0) {
             [j, curCommentIndex] = this.skipNonCode(j);
 
             if (bracket === this.source.charCodeAt(j))
