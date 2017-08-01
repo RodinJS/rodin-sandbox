@@ -114,7 +114,7 @@ class StaticAnalyzer {
         this._es5Scopes = null;
 
         this._es6ScopeGraph = null;
-
+        this._es5ScopeGraph = null;
 
         this._closingScopesSorted = [[], []];
     }
@@ -167,7 +167,7 @@ class StaticAnalyzer {
         const resTypes = [];
         const instances = [];
         const es6Scopes = [[], []];
-        const es5Scopes = [[], []];
+        //const es5Scopes = [[], []];
 
         const scopeGraph = [];
 
@@ -288,6 +288,15 @@ class StaticAnalyzer {
 
         const es5Scopes = ['function', 'function*'];
 
+        const scopeHandles = {}, scopeGraphHandles = {};
+
+        scopeHandles[StaticAnalyzer.scopeTypes.es5] = this._es5Scopes;
+        scopeHandles[StaticAnalyzer.scopeTypes.es6] = this._es6Scopes;
+
+        scopeGraphHandles[StaticAnalyzer.scopeTypes.es5] = this._es5ScopeGraph;
+        scopeGraphHandles[StaticAnalyzer.scopeTypes.es6] = this._es6ScopeGraph;
+
+
         const sourceContainsFrom = (arr, j) => {
             const len = arr.length;
             let i = 0;
@@ -316,7 +325,7 @@ class StaticAnalyzer {
             if (bracket === '{'.charCodeAt(0)) {
 
                 let scopeStart = i;
-                let j = skipNonCode(i);
+                let j = skipNonCode(i - 1);
 
                 // checking if the scope is a function
                 if (this.source.charCodeAt(j) === ')'.charCodeAt(0)) {
@@ -342,6 +351,9 @@ class StaticAnalyzer {
                     [j, _] = this.skipBrackets(j);
                     scopeStart = j;
                 }
+                console.log(scopeStart, scopeType);
+
+                const scopes = scopeHandles[scopeType];
 
                 // add new scope we just found to the graph
                 scopeGraph.push([]);
