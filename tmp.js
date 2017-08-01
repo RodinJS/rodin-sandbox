@@ -1,12 +1,15 @@
 function uxt() {
 
 }
-//
-//
-// const fcn = function () {
-//
-// };
-//
-// const arrFcn = () => {
-//
-// };
+
+
+const fcn = function () {
+
+};
+
+const arrFcn = () => {
+    if (true) {
+
+    }
+};
+

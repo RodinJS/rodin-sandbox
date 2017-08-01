@@ -341,10 +341,12 @@ class StaticAnalyzer {
                 if (this.source.charCodeAt(j) === ')'.charCodeAt(0)) {
                     [j, _] = this.skipBrackets(j);
                     let tmpI = 0;
+
                     while (tmpI++ < 2) {
                         // j = skipNonCode(j);
+                        j--;
                         [j, _] = this.skipNonCode(j, -1);
-                        const nextWord = this.getWordFromIndex(j - 1);
+                        const nextWord = this.getWordFromIndex(j);
                         const cur = this.source.substring(nextWord[0], nextWord[1]);
                         j = nextWord[0];
                         // const fcn = function(a,b,c){...}
