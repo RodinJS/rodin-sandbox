@@ -551,6 +551,10 @@ class StaticAnalyzer {
                 this._commentsAndStrings[curCommentIndex][0] <= j && j <= this._commentsAndStrings[curCommentIndex][1]) {
 
                 j = this._commentsAndStrings[curCommentIndex][direction === 1 ? 1 : 0];
+                if (direction === -1) {
+                    j--;
+                }
+
                 curCommentIndex += direction;
                 continue;
             }
