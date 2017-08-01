@@ -1,3 +1,5 @@
+let _ = undefined;
+
 const find = (source, needle, method = 'indexOf') => {
     const res = [];
     let cur = -1;
@@ -564,7 +566,7 @@ class StaticAnalyzer {
             return [j, curCommentIndex];
         }
         else {
-            return [j + 1, curCommentIndex];
+            return [j, curCommentIndex];
         }
     };
 
@@ -603,7 +605,8 @@ class StaticAnalyzer {
         const direction = isOpening ? 1 : -1;
         j += direction;
         while (j < this.source.length && j >= 0) {
-            [j, curCommentIndex] = this.skipNonCode(j, isOpening ? 1 : -1);
+            // debugger;
+            [j, curCommentIndex] = this.skipNonCode(j, direction);
 
             if (bracket === this.source.charCodeAt(j))
                 stack++;
