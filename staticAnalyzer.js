@@ -113,6 +113,7 @@ class StaticAnalyzer {
         this._commentsAndStringsAnalyzed = false;
         this._lca = null;
         this._es6Scopes = null;
+        this._scopeData = [[], []];
         this._es5Scopes = null;
 
         this._es6ScopeGraph = null;
@@ -343,9 +344,8 @@ class StaticAnalyzer {
                     let tmpI = 0;
 
                     while (tmpI++ < 2) {
-                        // j = skipNonCode(j);
                         j--;
-                        [j, _] = this.skipNonCode(j, -1);
+                        [j, _] = this.skipNonCode(j, -1); // add curCommentIndex
                         const nextWord = this.getWordFromIndex(j);
                         const cur = this.source.substring(nextWord[0], nextWord[1]);
                         j = nextWord[0];
@@ -359,9 +359,13 @@ class StaticAnalyzer {
                 } else if (this.source.charCodeAt(j) === '>'.charCodeAt(0) &&
                     this.source.charCodeAt(j - 1) === '='.charCodeAt(0)) {
                     // const fcn = ()=>{...}
+                    j -= 2;
+                    [j, _] = this.skipNonCode(j, -1); // add curCommentIndex
+                    [j, _] = this.skipBrackets(j); //  add curCommentIndex
+
                     scopeType = StaticAnalyzer.scopeTypes.es5;
-                    j = skipNonCode(j);
-                    [j, _] = this.skipBrackets(j);
+                    // j = skipNonCode(j);
+                    // [j, _] = this.skipBrackets(j);
                     scopeStart = j;
                 }
                 console.log(scopeStart, scopeType);
@@ -548,7 +552,7 @@ class StaticAnalyzer {
         if (isNaN(curCommentIndex))
             curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
 
-        while (j < this.source.length && j > 0) {
+        while (j < this.source.length && j >= 0) {
             if (curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
                 this._commentsAndStrings[curCommentIndex][0] <= j && j <= this._commentsAndStrings[curCommentIndex][1]) {
 
@@ -1485,4 +1489,13 @@ class StaticAnalyzer {
 
 }
 
-StaticAnalyzer.scopeTypes = {es5: 0, es6: 1};
+StaticAnalyzer.scopeTypes = {
+    es5: 0b00000000,
+    es5: 0b10000000,
+    class: 0b00000001,
+    function: 0b00000010,
+    for: 0b00000100,
+    if: 0b00001000,
+    while: 0b00010000,
+    do: 0b00100000,
+};
