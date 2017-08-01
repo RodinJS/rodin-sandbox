@@ -208,7 +208,7 @@ class StaticAnalyzer {
         const skipNonCode = (j) => {
             let resI = res.length - 1;
             while (j >= 0 && (this.source.charCodeAt(j) <= 32 || /* || this.source.charCodeAt(j) === 10 || /!*this.source.charCodeAt(j) === 9 ||*!/*/
-            (resI >= 0 && res[resI][0] < j && res[resI][1] > j))) {
+                (resI >= 0 && res[resI][0] < j && res[resI][1] > j))) {
                 j--;
                 if (resI >= 0 && res[resI][0] < j && res[resI][1] > j) {
                     j = res[resI][0] - 1;
@@ -561,36 +561,52 @@ class StaticAnalyzer {
 
     skipBrackets(j, curCommentIndex = binarySearch(this._commentsAndStrings, j, true)) {
         let oldJ = j;
-        const openingBracket = this.source.charCodeAt(j);
+        const bracket = this.source.charCodeAt(j);
 
-        if (['{'.charCodeAt(0), '('.charCodeAt(0), '['.charCodeAt(0)].indexOf(openingBracket) === -1)
+        const isOpening = ['{'.charCodeAt(0), '('.charCodeAt(0), '['.charCodeAt(0)].indexOf(bracket) !== -1;
+        const isClosing = ['}'.charCodeAt(0), ')'.charCodeAt(0), ']'.charCodeAt(0)].indexOf(bracket) !== -1;
+
+        if (!isOpening && !isClosing)
             return [oldJ, curCommentIndex];
 
-        if (openingBracket === '{'.charCodeAt(0)) {
+        if (bracket === '{'.charCodeAt(0)) {
             curCommentIndex = NaN;
             return this._es6Scopes[1][this._es6Scopes[0].indexOf(j)];
+        } else if (bracket === '}'.charCodeAt(0)) {
+            curCommentIndex = NaN;
+            return this._es6Scopes[0][this._es6Scopes[1].indexOf(j)];
         }
 
-        let closingBracket;
-        if (openingBracket === '('.charCodeAt(0))
-            closingBracket = ')'.charCodeAt(0);
+        let reverseBracket;
+        if (bracket === '('.charCodeAt(0))
+            reverseBracket = ')'.charCodeAt(0);
 
-        if (openingBracket === '['.charCodeAt(0))
-            closingBracket = ']'.charCodeAt(0);
+        if (bracket === ')'.charCodeAt(0))
+            reverseBracket = '('.charCodeAt(0);
+
+        if (bracket === '['.charCodeAt(0))
+            reverseBracket = ']'.charCodeAt(0);
+
+        if (bracket === ']'.charCodeAt(0))
+            reverseBracket = '['.charCodeAt(0);
 
         let stack = 1;
-        while (++j < this.source.length) {
+        const direction = isOpening ? 1 : -1;
+        j += direction;
+        while (j < this.source.length) {
             [j, curCommentIndex] = this.skipNonCode(j);
 
-            if (openingBracket === this.source.charCodeAt(j))
+            if (bracket === this.source.charCodeAt(j))
                 stack++;
 
-            if (closingBracket === this.source.charCodeAt(j)) {
+            if (reverseBracket === this.source.charCodeAt(j)) {
                 stack--;
 
                 if (stack === 0)
                     return [j, curCommentIndex];
             }
+
+            j += direction;
         }
 
         return [oldJ, curCommentIndex];
@@ -1301,7 +1317,7 @@ class StaticAnalyzer {
         const backwardsSkipNonCode = (j) => {
             let resI = binarySearch(this._commentsAndStrings, j, true);
             while (j >= 0 && (this.source.charCodeAt(j) <= 32 || /* || this.source.charCodeAt(j) === 10 || /!*this.source.charCodeAt(j) === 9 ||*!/*/
-            (resI >= 0 && resI < this._commentsAndStrings.length && this._commentsAndStrings[resI][0] < j && this._commentsAndStrings[resI][1] > j))) {
+                (resI >= 0 && resI < this._commentsAndStrings.length && this._commentsAndStrings[resI][0] < j && this._commentsAndStrings[resI][1] > j))) {
                 j--;
                 if (resI >= 0 && resI < this._commentsAndStrings.length && this._commentsAndStrings[resI][0] < j && this._commentsAndStrings[resI][1] > j) {
                     j = this._commentsAndStrings[resI][0] - 1;
