@@ -648,7 +648,7 @@ class StaticAnalyzer {
         }
 
         currChar = this.source.charAt(start);
-        while (jsDelimiterChars.indexOf(currChar) === -1 && start > 0) {
+        while (jsDelimiterChars.indexOf(currChar) === -1 && start >= 0) {
             start--;
             currChar = this.source.charAt(start);
         }
