@@ -1433,18 +1433,34 @@ class StaticAnalyzer {
 
         const references = [];
         const scopes = [];
+        const isDec = [];
+        const declarationScopes = new Set();
+
         let type = null;
         while ((match = rx.exec(this.source))) {
             const index = match.index;
             if (!this.isCommentOrString(index)) {
                 const scope = this.findScope(index);
-                if (scope === -1 && isDeclaration(index))
-                    type = 1;
+                scopes.push(scope);
+                isDec.push(isDeclaration(index));
+
+                if (isDeclaration(index)) {
+                    declarationScopes.add(scope);
+                    if (scope === -1) {
+                        // todo: get type of global declaration
+                        type = 1;
+                    }
+                }
+
                 references.push(index);
             }
         }
 
-        for (let index of references) {
+        console.log(declarationScopes);
+        // console.table({references, scopes, isDec});
+
+        for (let i = 0; i < references.length; i++) {
+            let index = references[i];
             const scope = this.findScope(index);
             if (scope === -1 && isDeclaration(index)) {
                 console.log(`declaration of ${variable} in ${index}`)
