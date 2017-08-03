@@ -1,3 +1,15 @@
-{
-    let x = 10, y = 20, z, a = z;
+function uxt() {
+
 }
+
+
+const fcn = function () {
+
+};
+
+const arrFcn = () => {
+    if (true) {
+
+    }
+};
+
