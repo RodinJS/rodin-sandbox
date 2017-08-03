@@ -1319,6 +1319,9 @@ class StaticAnalyzer {
         // to make it easier to port for 'var's
         const opening = binarySearchLowerBound(this._es6Scopes[0], index);
         const closing = this._closingScopesSorted[1][binarySearchUpperBound(this._closingScopesSorted[0], index)];
+        if (opening < 0 || closing < 0) {
+            return -1;
+        }
         if (!this._scopeGraphFunctions) {
             this._scopeGraphFunctions = getLCA(this._es6ScopeGraph);
         }
@@ -1363,9 +1366,8 @@ class StaticAnalyzer {
                 while (index > 0) {
                     index --;
                     [index, _] = this.skipNonCode(index, -1);
-                    debugger;
                     [index, _] = this.skipBrackets(index);
-                    console.log('asd', index);
+                    console.log('asd', index, this.source.charAt(index));
                 }
             }
             let i = 0;
@@ -1392,26 +1394,40 @@ class StaticAnalyzer {
         // so lets just go with the last variable
         let lastDeclarationScope = null;
 
-
+        const references = [];
+        const scopes = [];
+        let type = null;
         while ((match = rx.exec(this.source))) {
             const index = match.index;
+            if(!this.isCommentOrString(index)) {
+                const scope = this.findScope(index);
+                if(scope === -1 && isDeclaration(index))
+                    type = 1;
+                references.push(index);
+            }
+        }
+
+        for(let index of references) {
             const scope = this.findScope(index);
-
-            if (lastDeclarationScope !== null &&
-                lastDeclarationScope !== scope &&
-                this._scopeGraphFunctions.isParent(lastDeclarationScope, scope)) {
-                continue;
-            }
-            else {
-                lastDeclarationScope = null;
+            if(scope === -1 && isDeclaration(index)) {
+                console.log(`declaration of ${variable} in ${index}`)
             }
 
-            if (isDeclaration(index)) {
-                console.log(`Found declaration of ${variable} at ${index} scope ${scope}`);
-                // declarationScopeStack.push(scope);
-                lastDeclarationScope = scope;
-            }
-            matches.push(match.index);
+            // if (lastDeclarationScope !== null &&
+            //     lastDeclarationScope !== scope &&
+            //     this._scopeGraphFunctions.isParent(lastDeclarationScope, scope)) {
+            //     continue;
+            // }
+            // else {
+            //     lastDeclarationScope = null;
+            // }
+            //
+            // if (isDeclaration(index)) {
+            //     console.log(`Found declaration of ${variable} at ${index} scope ${scope}`);
+            //     // declarationScopeStack.push(scope);
+            //     lastDeclarationScope = scope;
+            // }
+            // matches.push(match.index);
         }
 
         console.log(matches);
