@@ -566,12 +566,7 @@ class StaticAnalyzer {
             break;
         }
 
-        if (direction === 1) {
-            return [j, curCommentIndex];
-        }
-        else {
-            return [j, curCommentIndex];
-        }
+        return [j, curCommentIndex];
     };
 
     skipBrackets(j, curCommentIndex = binarySearch(this._commentsAndStrings, j, true)) {
@@ -1357,6 +1352,14 @@ class StaticAnalyzer {
                 // todo: go back until var/let/const...
                 // todo: gor has this code somewhere, find it
                 // todo: put it here :D
+
+                while (index > 0) {
+                    index --;
+                    [index, _] = this.skipNonCode(index, -1);
+                    debugger;
+                    [index, _] = this.skipBrackets(index);
+                    console.log('asd', index);
+                }
             }
             let i = 0;
             let curLength = 0;
