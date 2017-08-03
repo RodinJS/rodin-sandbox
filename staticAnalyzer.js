@@ -1396,18 +1396,25 @@ class StaticAnalyzer {
 
         const references = [];
         const scopes = [];
+        const isDec = [];
+
         let type = null;
         while ((match = rx.exec(this.source))) {
             const index = match.index;
             if(!this.isCommentOrString(index)) {
                 const scope = this.findScope(index);
+                scopes.push(scope);
+                isDec.push(isDeclaration(index));
+
                 if(scope === -1 && isDeclaration(index))
                     type = 1;
+
                 references.push(index);
             }
         }
 
-        for(let index of references) {
+        for(let i = 0; i < references.length; i ++) {
+            let index = references[i];
             const scope = this.findScope(index);
             if(scope === -1 && isDeclaration(index)) {
                 console.log(`declaration of ${variable} in ${index}`)
