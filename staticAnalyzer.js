@@ -203,6 +203,9 @@ class StaticAnalyzer {
         const charsBeforeRegex = ['=', '+', '-', '/', '*', '%', '(', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?', '>', '<'];
         const charsAfterRegex = ['=', '+', '-', '/', '*', '%', ')', ']', ';', ',', '}'];
 
+        const oneLinerSplitters = ['+', '-', '/', '*', '%', '[', ']', '(', ')', '{', '}', '.'].map(x => x.charCodeAt(0));
+
+
         const wordsBeforeRegex = ['return', 'yield', 'typeof', 'case', 'do', 'else'];
 
         const length = this.source.length;
@@ -349,6 +352,7 @@ class StaticAnalyzer {
                 case StaticAnalyzer.scopeTypes.arrowFunction:
                     // debugger;
                     [i, _] = this.skipNonCode(i + 2);
+                    scopeStart = i;
                     i++;
                     let c = j - 1;
                     c--;
@@ -374,7 +378,7 @@ class StaticAnalyzer {
                     }
 
                     this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
-                    scopeStart = j;
+
 
                     isOpening = true;
                     break;
@@ -408,12 +412,11 @@ class StaticAnalyzer {
                         if (es5Scopes.indexOf(cur) !== -1) {
                             scopeType = StaticAnalyzer.scopeTypes.function;
                             this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
-                            scopeStart = j;
+                            // scopeStart = j;
                         }
                     }
 
                 }
-                console.log(scopeStart, scopeType.toString(2));
 
             }
 
@@ -455,6 +458,7 @@ class StaticAnalyzer {
                 scopeStackSize--;
                 bracketStack.pop();
             }
+            console.log(scopeStart, scopeType.toString(2));
 
             //es6Scopes.push([i, bracket]);
         };
@@ -465,12 +469,21 @@ class StaticAnalyzer {
             commentAndStringTypes.push(state);
         };
 
+        let isOneLinerEnter = false;
 
         while (i < length) {
             const cur = this.source.charCodeAt(i);
 
             switch (state) {
                 case s.anything:
+
+                    // if (isOneLinerEnter && bracketStack[bracketStack.length - 1] === -1 &&
+                    //     oneLinerSplitters.indexOf(this.source.charCodeAt(i)) === -1) {
+                    //     isOneLinerEnter = false;
+                    //     // todo: check if this saves one more character after the scope
+                    //     saveScope(-2, StaticAnalyzer.scopeTypes.oneLine);
+                    // }
+
                     start = i;
                     if (cur === '/'.charCodeAt(0)) {
                         state = s.afterSlash;
@@ -489,8 +502,18 @@ class StaticAnalyzer {
                         saveScope(cur);
                     } else if (cur === '='.charCodeAt(0) && this.source.charCodeAt(i + 1) === '>'.charCodeAt(0)) {
                         saveScope(cur, StaticAnalyzer.scopeTypes.arrowFunction);
-                    } else if (cur === ';' && bracketStack[bracketStack.length - 1] === -1) {
-                        saveScope(-2, StaticAnalyzer.scopeTypes.oneLine); // one line code has come to an end
+                    } else if (bracketStack[bracketStack.length - 1] === -1) {
+                        if (cur === ';'.charCodeAt(0)) {
+                            saveScope(-2, StaticAnalyzer.scopeTypes.oneLine); // one line code has come to an end
+                        } else if (cur === '\n'.charCodeAt(0)) {
+                            let tmp = this.skipNonCode(i, -1)[0];
+                            // todo: this doesn't work if a oneliner is directly in the end of the file
+                            if (oneLinerSplitters.indexOf(this.source.charCodeAt(tmp)) === -1) {
+                                // todo: figure out how to skip code here so we can check after \n
+                                saveScope(-2, StaticAnalyzer.scopeTypes.oneLine); // one line code has come to an end
+                                // isOneLinerEnter = true;
+                            }
+                        }
                     } else {
                         const bracket = brackets.indexOf(cur);
                         if (bracket !== -1) {
@@ -1520,10 +1543,12 @@ class StaticAnalyzer {
     // helper functions
 
     visualizeCode(container) {
-        const cur = this.source;
+        const spacePlaceHolder = String.fromCharCode(1000);
+        const newLinePlaceHolder = String.fromCharCode(1001);
+
+        const cur = this.source.replace(/\n/g, newLinePlaceHolder).replace(/\s/g, spacePlaceHolder);
         let res = '';
         const scopes = [...this._es6Scopes[0], ...this._es6Scopes[1]];
-
 
         for (let i = 0; i < cur.length; i++) {
             let c = cur.charAt(i).replace('<', "&lt;").replace('>', "&gt;");
@@ -1533,14 +1558,19 @@ class StaticAnalyzer {
             }
 
             if (scopes.indexOf(i) !== -1) {
-                c = `<mark>${c}</mark>`;
+                if (c === spacePlaceHolder || c === newLinePlaceHolder) {
+                    c += `<span style="background-color: #ff0000; color: #fff">&nbsp</span>`;
+                } else {
+                    c = `<span style="background-color: #ff0000; color: #fff">${c}</span>`;
+                }
+
             }
 
             res += c;
 
         }
 
-        container.innerHTML = res.replace(/\n/g, '<br>').replace(/\s/g, '&nbsp;');
+        container.innerHTML = res.replace(new RegExp(newLinePlaceHolder, 'g'), '<br>').replace(new RegExp(spacePlaceHolder, 'g'), '&nbsp;');
     }
 
     visualizeExports() {
