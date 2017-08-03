@@ -327,20 +327,45 @@ class StaticAnalyzer {
             return -1;
         };
 
+
+        //todo: one line arrow functions, for, if, while, do
         const saveScope = (bracket, scopeType = StaticAnalyzer.scopeTypes.es6) => {
+
+            let isOpening = false;
+            let scopeStart = i;
+            let j = i;
 
             // todo: make a debug flag for these things
             this._scopeString += String.fromCharCode(bracket);
+            switch (scopeType) {
+                case StaticAnalyzer.scopeTypes.arrowFunction:
+                    debugger;
+                    [i, _] = this.skipNonCode(i + 2);
+                    i++;
+                    j--;
+                    [j, _] = this.skipNonCode(j, -1); // add curCommentIndex
+                    const closingRoundBracket = j;
+                    [j, _] = this.skipBrackets(j); //  add curCommentIndex
+                    const openingRoundBracket = j;
 
+                    // scopeType = StaticAnalyzer.scopeTypes.arrowFunction;
+                    this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
+                    scopeStart = j;
+                    break;
+            }
 
             if (bracket === '{'.charCodeAt(0)) {
 
-                let scopeStart = i;
-                let j = skipNonCode(i - 1);
+                isOpening = true;
+                j = skipNonCode(i - 1);
 
                 // checking if the scope is a function
                 if (this.source.charCodeAt(j) === ')'.charCodeAt(0)) {
+                    const closingRoundBracket = j;
+
                     [j, _] = this.skipBrackets(j);
+                    const openingRoundBracket = j;
+
                     let tmpI = 0;
 
                     while (tmpI++ < 2) {
@@ -351,26 +376,22 @@ class StaticAnalyzer {
                         j = nextWord[0];
                         // const fcn = function(a,b,c){...}
                         if (es5Scopes.indexOf(cur) !== -1) {
-                            scopeType = StaticAnalyzer.scopeTypes.es5;
+                            scopeType = StaticAnalyzer.scopeTypes.function;
+                            this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
                             scopeStart = j;
                         }
                     }
 
-                } else if (this.source.charCodeAt(j) === '>'.charCodeAt(0) &&
-                    this.source.charCodeAt(j - 1) === '='.charCodeAt(0)) {
-                    // const fcn = ()=>{...}
-                    j -= 2;
-                    [j, _] = this.skipNonCode(j, -1); // add curCommentIndex
-                    [j, _] = this.skipBrackets(j); //  add curCommentIndex
-
-                    scopeType = StaticAnalyzer.scopeTypes.es5;
-                    // j = skipNonCode(j);
-                    // [j, _] = this.skipBrackets(j);
-                    scopeStart = j;
                 }
-                console.log(scopeStart, scopeType);
+                console.log(scopeStart, scopeType.toString(2));
 
-                const scopes = scopeHandles[scopeType];
+            }
+
+
+            if (isOpening) {
+                // we put everything in es6 scopes since it contains all other types
+                // then we distinguish them later.
+                const scopes = this._es6Scopes;
 
                 // add new scope we just found to the graph
                 scopeGraph.push([]);
@@ -403,6 +424,7 @@ class StaticAnalyzer {
 
                 scopeStackSize--;
             }
+
             //es6Scopes.push([i, bracket]);
         };
 
@@ -433,6 +455,8 @@ class StaticAnalyzer {
                         saveScope(cur);
                     } else if (cur === '}'.charCodeAt(0)) {
                         saveScope(cur);
+                    } else if (cur === '='.charCodeAt(0) && this.source.charCodeAt(i + 1) === '>'.charCodeAt(0)) {
+                        saveScope(cur, StaticAnalyzer.scopeTypes.arrowFunction);
                     }
 
                     break;
@@ -1491,11 +1515,12 @@ class StaticAnalyzer {
 
 StaticAnalyzer.scopeTypes = {
     es5: 0b00000000,
-    es5: 0b10000000,
+    es6: 0b10000000,
     class: 0b00000001,
     function: 0b00000010,
-    for: 0b00000100,
-    if: 0b00001000,
-    while: 0b00010000,
-    do: 0b00100000,
+    arrowFunction: 0b00000100,
+    for: 0b00001000,
+    if: 0b00010000,
+    while: 0b00100000,
+    do: 0b01000000,
 };
