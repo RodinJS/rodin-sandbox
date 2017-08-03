@@ -64,6 +64,12 @@ const getLog = (n) => {
 
 const getLCA = (graph) => {
     const n = graph.length;
+    const parentMap = new Array(n).fill(NaN);
+    for (let i = 0; i < n; i++) {
+        for (let j = 0; j < graph[i].length; j++) {
+            parentMap[graph[i][j]] = i;
+        }
+    }
 
     const dfsEnter = new Array(n);
     const dfsExit = new Array(n);
@@ -107,5 +113,9 @@ const getLCA = (graph) => {
         return up[a][0];
     };
 
-    return {lca: lca, isParent: isParent};
+    const getParent = (a)=>{
+        return parentMap[a];
+    };
+
+    return {lca, isParent, getParent};
 };
