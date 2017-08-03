@@ -337,6 +337,7 @@ class StaticAnalyzer {
 
             // todo: make a debug flag for these things
             this._scopeString += String.fromCharCode(bracket);
+
             switch (scopeType) {
                 case StaticAnalyzer.scopeTypes.arrowFunction:
                     // debugger;
@@ -344,9 +345,18 @@ class StaticAnalyzer {
                     i++;
                     j--;
                     [j, _] = this.skipNonCode(j, -1); // add curCommentIndex
-                    const closingRoundBracket = j;
-                    [j, _] = this.skipBrackets(j); //  add curCommentIndex
-                    const openingRoundBracket = j;
+                    let closingRoundBracket = j;
+                    let openingRoundBracket = null;
+
+                    if (this.source.charCodeAt(j) !== ')'.charCodeAt(0)) {
+                        closingRoundBracket++;
+                        j = this.getWordFromIndex(j)[0];
+                        // todo: figure out if this if j or j+1
+                        openingRoundBracket = j;
+                    } else {
+                        [j, _] = this.skipBrackets(j); //  add curCommentIndex
+                        openingRoundBracket = j;
+                    }
 
                     // scopeType = StaticAnalyzer.scopeTypes.arrowFunction;
                     this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
@@ -434,6 +444,8 @@ class StaticAnalyzer {
             commentsAndStrings.push([start, end + 1]);
             commentAndStringTypes.push(state);
         };
+
+        const bracketStack = [];
 
         while (i < length) {
             const cur = this.source.charCodeAt(i);
@@ -1389,7 +1401,7 @@ class StaticAnalyzer {
                 // todo: put it here :D
 
                 while (index > 0) {
-                    index --;
+                    index--;
                     [index, _] = this.skipNonCode(index, -1);
                     [index, _] = this.skipBrackets(index);
                     console.log('asd', index, this.source.charAt(index));
@@ -1424,17 +1436,17 @@ class StaticAnalyzer {
         let type = null;
         while ((match = rx.exec(this.source))) {
             const index = match.index;
-            if(!this.isCommentOrString(index)) {
+            if (!this.isCommentOrString(index)) {
                 const scope = this.findScope(index);
-                if(scope === -1 && isDeclaration(index))
+                if (scope === -1 && isDeclaration(index))
                     type = 1;
                 references.push(index);
             }
         }
 
-        for(let index of references) {
+        for (let index of references) {
             const scope = this.findScope(index);
-            if(scope === -1 && isDeclaration(index)) {
+            if (scope === -1 && isDeclaration(index)) {
                 console.log(`declaration of ${variable} in ${index}`)
             }
 
