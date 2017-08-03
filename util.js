@@ -1,42 +1,52 @@
 /**
  * Finds the last element in the array which is not smaller than key
  * @param array
- * @param key
+ * @param value
  * @return {number}
  */
-// todo: check this, has some bugs probably
-const binarySearchLowerBound = (array, key) => {
-
-    let low = 0, high = array.length;
-    while (low < high) {
-        const mid = (low + high) >> 1;
-        if (key <= array[mid]) {
-            high = mid;
-        } else {
+function binarySearchLowerBound(array, value) {
+    let low = 0;
+    let high = array.length - 1;
+    let mid;
+    while (low <= high) {
+        mid = (low + high) >> 1;
+        if (array[mid] === value) {
+            return mid;
+        }
+        else if (array[mid] < value) {
             low = mid + 1;
         }
+        else {
+            high = mid - 1;
+        }
     }
-    return low - 1;
-};
+    return high;
+}
 
 /**
  * Finds the first element in the array which is greater than key
  * @param array
- * @param key
+ * @param value
  * @return {number}
  */
-const binarySearchUpperBound = (array, key) => {
-    let low = 0, high = array.length;
-    while (low < high) {
-        const mid = (low + high) >> 1;
-        if (key >= array[mid]) {
+function binarySearchUpperBound(array, value) {
+    let low = 0;
+    let high = array.length - 1;
+    let mid;
+    while (low <= high) {
+        mid = (low + high) >> 1;
+        if (array[mid] === value) {
+            return mid;
+        }
+        else if (array[mid] < value) {
             low = mid + 1;
-        } else {
-            high = mid;
+        }
+        else {
+            high = mid - 1;
         }
     }
-    return low;
-};
+    return low > array.length - 1 ? -1 : low;
+}
 
 
 // maybe use js log? idk need to check
