@@ -327,6 +327,13 @@ class StaticAnalyzer {
             return -1;
         };
 
+        const bracketStack = [];
+
+        const brackets = [
+            '['.charCodeAt(0), '('.charCodeAt(0), '{'.charCodeAt(0), -1 /*single line scope*/,
+            ']'.charCodeAt(0), ')'.charCodeAt(0), '}'.charCodeAt(0), -2 /*single line scope*/,
+        ];
+
 
         //todo: one line arrow functions, for, if, while, do
         const saveScope = (bracket, scopeType = StaticAnalyzer.scopeTypes.es6) => {
@@ -343,30 +350,42 @@ class StaticAnalyzer {
                     // debugger;
                     [i, _] = this.skipNonCode(i + 2);
                     i++;
-                    j--;
-                    [j, _] = this.skipNonCode(j, -1); // add curCommentIndex
-                    let closingRoundBracket = j;
+                    let c = j - 1;
+                    c--;
+                    [c, _] = this.skipNonCode(c, -1); // add curCommentIndex
+                    let closingRoundBracket = c;
                     let openingRoundBracket = null;
 
-                    if (this.source.charCodeAt(j) !== ')'.charCodeAt(0)) {
+                    if (this.source.charCodeAt(c) !== ')'.charCodeAt(0)) {
                         closingRoundBracket++;
-                        j = this.getWordFromIndex(j)[0];
+                        c = this.getWordFromIndex(c)[0];
                         // todo: figure out if this if j or j+1
-                        openingRoundBracket = j;
+                        openingRoundBracket = c;
                     } else {
-                        [j, _] = this.skipBrackets(j); //  add curCommentIndex
-                        openingRoundBracket = j;
+                        [c, _] = this.skipBrackets(c); //  add curCommentIndex
+                        openingRoundBracket = c;
                     }
 
-                    // scopeType = StaticAnalyzer.scopeTypes.arrowFunction;
+                    scopeType = StaticAnalyzer.scopeTypes.arrowFunction;
+
+                    if (this.source.charCodeAt(i - 1) !== '{'.charCodeAt(0)) {
+                        scopeType = scopeType | StaticAnalyzer.scopeTypes.oneLine;
+                        bracketStack.push(-1);
+                    }
+
                     this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
                     scopeStart = j;
+
                     isOpening = true;
+                    break;
+                case StaticAnalyzer.scopeTypes.oneLine:
+                    isOpening = false;
+                    bracketStack.pop();
                     break;
             }
 
             if (bracket === '{'.charCodeAt(0)) {
-
+                bracketStack.push(bracket);
                 isOpening = true;
                 j = skipNonCode(i - 1);
 
@@ -434,6 +453,7 @@ class StaticAnalyzer {
                 this._closingScopesSorted[1].push(scopeStack[scopeStackSize - 1]);
 
                 scopeStackSize--;
+                bracketStack.pop();
             }
 
             //es6Scopes.push([i, bracket]);
@@ -445,7 +465,6 @@ class StaticAnalyzer {
             commentAndStringTypes.push(state);
         };
 
-        const bracketStack = [];
 
         while (i < length) {
             const cur = this.source.charCodeAt(i);
@@ -470,6 +489,18 @@ class StaticAnalyzer {
                         saveScope(cur);
                     } else if (cur === '='.charCodeAt(0) && this.source.charCodeAt(i + 1) === '>'.charCodeAt(0)) {
                         saveScope(cur, StaticAnalyzer.scopeTypes.arrowFunction);
+                    } else if (cur === ';' && bracketStack[bracketStack.length - 1] === -1) {
+                        saveScope(-2, StaticAnalyzer.scopeTypes.oneLine); // one line code has come to an end
+                    } else {
+                        const bracket = brackets.indexOf(cur);
+                        if (bracket !== -1) {
+                            if (bracket < brackets.length / 2) { // opening
+                                bracketStack.push(bracket);
+                            }
+                            else { // closing
+                                bracketStack.pop();
+                            }
+                        }
                     }
 
                     break;
@@ -1562,13 +1593,14 @@ class StaticAnalyzer {
 }
 
 StaticAnalyzer.scopeTypes = {
-    es5: 0b00000000,
-    es6: 0b10000000,
-    class: 0b00000001,
-    function: 0b00000010,
-    arrowFunction: 0b00000100,
-    for: 0b00001000,
-    if: 0b00010000,
-    while: 0b00100000,
-    do: 0b01000000,
+    es5: 0b000000000,
+    es6: 0b100000000,
+    oneLine: 0b010000000,
+    class: 0b000000001,
+    function: 0b000000010,
+    arrowFunction: 0b000000100,
+    for: 0b000001000,
+    if: 0b000010000,
+    while: 0b000100000,
+    do: 0b001000000
 };
