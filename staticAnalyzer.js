@@ -339,7 +339,7 @@ class StaticAnalyzer {
             this._scopeString += String.fromCharCode(bracket);
             switch (scopeType) {
                 case StaticAnalyzer.scopeTypes.arrowFunction:
-                    debugger;
+                    // debugger;
                     [i, _] = this.skipNonCode(i + 2);
                     i++;
                     j--;
@@ -351,6 +351,7 @@ class StaticAnalyzer {
                     // scopeType = StaticAnalyzer.scopeTypes.arrowFunction;
                     this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
                     scopeStart = j;
+                    isOpening = true;
                     break;
             }
 
