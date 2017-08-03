@@ -656,10 +656,10 @@ class StaticAnalyzer {
 
         if (bracket === '{'.charCodeAt(0)) {
             curCommentIndex = NaN;
-            return this._es6Scopes[1][this._es6Scopes[0].indexOf(j)];
+            return [j, this._es6Scopes[1][this._es6Scopes[0].indexOf(j)]];
         } else if (bracket === '}'.charCodeAt(0)) {
             curCommentIndex = NaN;
-            return this._es6Scopes[0][this._es6Scopes[1].indexOf(j)];
+            return [j, this._es6Scopes[0][this._es6Scopes[1].indexOf(j)]];
         }
 
         let reverseBracket;
@@ -679,7 +679,6 @@ class StaticAnalyzer {
         const direction = isOpening ? 1 : -1;
         j += direction;
         while (j < this.source.length && j >= 0) {
-            // debugger;
             [j, curCommentIndex] = this.skipNonCode(j, direction);
 
             if (bracket === this.source.charCodeAt(j))
