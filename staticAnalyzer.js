@@ -621,6 +621,21 @@ class StaticAnalyzer {
         //return commentsAndStrings;
     }
 
+    analyzeScopes() {
+        const n = this.source.length;
+        let i = 0;
+
+        const s = {
+
+        };
+
+        while (i < n) {
+            const cur = this.source.charCodeAt(i);
+
+            i++;
+        }
+    }
+
     isCommentOrString(index) {
         if (!this._commentsAndStringsAnalyzed) {
             // not analyzed
