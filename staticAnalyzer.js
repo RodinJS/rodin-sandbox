@@ -625,9 +625,7 @@ class StaticAnalyzer {
         const n = this.source.length;
         let i = 0;
 
-        const s = {
-
-        };
+        const s = {};
 
         while (i < n) {
             const cur = this.source.charCodeAt(i);
@@ -654,12 +652,12 @@ class StaticAnalyzer {
     }
 
     // todo: add a direction to this
-    skipNonCode(j, direction = 1, curCommentIndex = binarySearch(this._commentsAndStrings, j, true)) {
+    skipNonCode(j, direction = 1, curCommentIndex = binarySearch(this._commentsAndStrings, j, true), skipComments = true, skipWhitespace = true, skipNewLine = true) {
         if (isNaN(curCommentIndex))
             curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
 
         while (j < this.source.length && j >= 0) {
-            if (curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
+            if (skipComments && curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
                 this._commentsAndStrings[curCommentIndex][0] <= j && j <= this._commentsAndStrings[curCommentIndex][1]) {
 
                 j = this._commentsAndStrings[curCommentIndex][direction === 1 ? 1 : 0];
@@ -671,7 +669,12 @@ class StaticAnalyzer {
                 continue;
             }
 
-            if (this.source.charCodeAt(j) <= 32) {
+            // if (this.source.charCodeAt(j) <= 32) {
+            //     j += direction;
+            //     continue;
+            // }
+
+            if ((skipNewLine && this.source.charCodeAt(j) === 10) || (skipWhitespace && this.source.charCodeAt(j) <= 32 && this.source.charCodeAt(j) !== 10)) {
                 j += direction;
                 continue;
             }
@@ -1452,15 +1455,24 @@ class StaticAnalyzer {
 
             // multivariable case
             if (this.source.charCodeAt(index) === ','.charCodeAt(0)) {
+                // todo: fix it when @serg will provide data
+                // if(insideFunctionParams) {
+                //     return isfunctionDefinition
+                // }
+
                 // todo: go back until var/let/const...
                 // todo: gor has this code somewhere, find it
                 // todo: put it here :D
 
+                let newIndex = index;
+                let nonCodeSkipped = false;
                 while (index > scopeStart) {
                     index--;
-                    [index, _] = this.skipNonCode(index, -1);
+                    [newIndex, _] = this.skipNonCode(index, -1);
+                    nonCodeSkipped = index !== newIndex;
+                    index = newIndex;
                     [index, _] = this.skipBrackets(index);
-                    console.log('asd', index, this.source.charAt(index));
+                    console.log('asd', index, this.source.charAt(index), nonCodeSkipped);
                 }
             }
             let i = 0;
