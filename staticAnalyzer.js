@@ -203,6 +203,9 @@ class StaticAnalyzer {
         const charsBeforeRegex = ['=', '+', '-', '/', '*', '%', '(', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?', '>', '<'];
         const charsAfterRegex = ['=', '+', '-', '/', '*', '%', ')', ']', ';', ',', '}'];
 
+        const oneLinerSplitters = ['+', '-', '/', '*', '%', '[', ']', '(', ')', '{', '}', '.'].map(x => x.charCodeAt(0));
+
+
         const wordsBeforeRegex = ['return', 'yield', 'typeof', 'case', 'do', 'else'];
 
         const length = this.source.length;
@@ -327,6 +330,13 @@ class StaticAnalyzer {
             return -1;
         };
 
+        const bracketStack = [];
+
+        const brackets = [
+            '['.charCodeAt(0), '('.charCodeAt(0), '{'.charCodeAt(0), -1 /*single line scope*/,
+            ']'.charCodeAt(0), ')'.charCodeAt(0), '}'.charCodeAt(0), -2 /*single line scope*/,
+        ];
+
 
         //todo: one line arrow functions, for, if, while, do
         const saveScope = (bracket, scopeType = StaticAnalyzer.scopeTypes.es6) => {
@@ -342,31 +352,44 @@ class StaticAnalyzer {
                 case StaticAnalyzer.scopeTypes.arrowFunction:
                     // debugger;
                     [i, _] = this.skipNonCode(i + 2);
+                    scopeStart = i;
                     i++;
-                    j--;
-                    [j, _] = this.skipNonCode(j, -1); // add curCommentIndex
-                    let closingRoundBracket = j;
+                    let c = j - 1;
+                    c--;
+                    [c, _] = this.skipNonCode(c, -1); // add curCommentIndex
+                    let closingRoundBracket = c;
                     let openingRoundBracket = null;
 
-                    if (this.source.charCodeAt(j) !== ')'.charCodeAt(0)) {
+                    if (this.source.charCodeAt(c) !== ')'.charCodeAt(0)) {
                         closingRoundBracket++;
-                        j = this.getWordFromIndex(j)[0];
+                        c = this.getWordFromIndex(c)[0];
                         // todo: figure out if this if j or j+1
-                        openingRoundBracket = j;
+                        openingRoundBracket = c;
                     } else {
-                        [j, _] = this.skipBrackets(j); //  add curCommentIndex
-                        openingRoundBracket = j;
+                        [c, _] = this.skipBrackets(c); //  add curCommentIndex
+                        openingRoundBracket = c;
                     }
 
-                    // scopeType = StaticAnalyzer.scopeTypes.arrowFunction;
+                    scopeType = StaticAnalyzer.scopeTypes.arrowFunction;
+
+                    if (this.source.charCodeAt(i - 1) !== '{'.charCodeAt(0)) {
+                        scopeType = scopeType | StaticAnalyzer.scopeTypes.oneLine;
+                        bracketStack.push(-1);
+                    }
+
                     this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
-                    scopeStart = j;
+
+
                     isOpening = true;
+                    break;
+                case StaticAnalyzer.scopeTypes.oneLine:
+                    isOpening = false;
+                    bracketStack.pop();
                     break;
             }
 
             if (bracket === '{'.charCodeAt(0)) {
-
+                bracketStack.push(bracket);
                 isOpening = true;
                 j = skipNonCode(i - 1);
 
@@ -389,12 +412,11 @@ class StaticAnalyzer {
                         if (es5Scopes.indexOf(cur) !== -1) {
                             scopeType = StaticAnalyzer.scopeTypes.function;
                             this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
-                            scopeStart = j;
+                            // scopeStart = j;
                         }
                     }
 
                 }
-                console.log(scopeStart, scopeType.toString(2));
 
             }
 
@@ -434,7 +456,9 @@ class StaticAnalyzer {
                 this._closingScopesSorted[1].push(scopeStack[scopeStackSize - 1]);
 
                 scopeStackSize--;
+                bracketStack.pop();
             }
+            console.log(scopeStart, scopeType.toString(2));
 
             //es6Scopes.push([i, bracket]);
         };
@@ -445,13 +469,21 @@ class StaticAnalyzer {
             commentAndStringTypes.push(state);
         };
 
-        const bracketStack = [];
+        let isOneLinerEnter = false;
 
         while (i < length) {
             const cur = this.source.charCodeAt(i);
 
             switch (state) {
                 case s.anything:
+
+                    // if (isOneLinerEnter && bracketStack[bracketStack.length - 1] === -1 &&
+                    //     oneLinerSplitters.indexOf(this.source.charCodeAt(i)) === -1) {
+                    //     isOneLinerEnter = false;
+                    //     // todo: check if this saves one more character after the scope
+                    //     saveScope(-2, StaticAnalyzer.scopeTypes.oneLine);
+                    // }
+
                     start = i;
                     if (cur === '/'.charCodeAt(0)) {
                         state = s.afterSlash;
@@ -470,6 +502,28 @@ class StaticAnalyzer {
                         saveScope(cur);
                     } else if (cur === '='.charCodeAt(0) && this.source.charCodeAt(i + 1) === '>'.charCodeAt(0)) {
                         saveScope(cur, StaticAnalyzer.scopeTypes.arrowFunction);
+                    } else if (bracketStack[bracketStack.length - 1] === -1) {
+                        if (cur === ';'.charCodeAt(0)) {
+                            saveScope(-2, StaticAnalyzer.scopeTypes.oneLine); // one line code has come to an end
+                        } else if (cur === '\n'.charCodeAt(0)) {
+                            let tmp = this.skipNonCode(i, -1)[0];
+                            // todo: this doesn't work if a oneliner is directly in the end of the file
+                            if (oneLinerSplitters.indexOf(this.source.charCodeAt(tmp)) === -1) {
+                                // todo: figure out how to skip code here so we can check after \n
+                                saveScope(-2, StaticAnalyzer.scopeTypes.oneLine); // one line code has come to an end
+                                // isOneLinerEnter = true;
+                            }
+                        }
+                    } else {
+                        const bracket = brackets.indexOf(cur);
+                        if (bracket !== -1) {
+                            if (bracket < brackets.length / 2) { // opening
+                                bracketStack.push(bracket);
+                            }
+                            else { // closing
+                                bracketStack.pop();
+                            }
+                        }
                     }
 
                     break;
@@ -565,6 +619,21 @@ class StaticAnalyzer {
         //window.instances = instances;
 
         //return commentsAndStrings;
+    }
+
+    analyzeScopes() {
+        const n = this.source.length;
+        let i = 0;
+
+        const s = {
+
+        };
+
+        while (i < n) {
+            const cur = this.source.charCodeAt(i);
+
+            i++;
+        }
     }
 
     isCommentOrString(index) {
@@ -1474,10 +1543,12 @@ class StaticAnalyzer {
     // helper functions
 
     visualizeCode(container) {
-        const cur = this.source;
+        const spacePlaceHolder = String.fromCharCode(1000);
+        const newLinePlaceHolder = String.fromCharCode(1001);
+
+        const cur = this.source.replace(/\n/g, newLinePlaceHolder).replace(/\s/g, spacePlaceHolder);
         let res = '';
         const scopes = [...this._es6Scopes[0], ...this._es6Scopes[1]];
-
 
         for (let i = 0; i < cur.length; i++) {
             let c = cur.charAt(i).replace('<', "&lt;").replace('>', "&gt;");
@@ -1487,14 +1558,19 @@ class StaticAnalyzer {
             }
 
             if (scopes.indexOf(i) !== -1) {
-                c = `<mark>${c}</mark>`;
+                if (c === spacePlaceHolder || c === newLinePlaceHolder) {
+                    c += `<span style="background-color: #ff0000; color: #fff">&nbsp</span>`;
+                } else {
+                    c = `<span style="background-color: #ff0000; color: #fff">${c}</span>`;
+                }
+
             }
 
             res += c;
 
         }
 
-        container.innerHTML = res.replace(/\n/g, '<br>').replace(/\s/g, '&nbsp;');
+        container.innerHTML = res.replace(new RegExp(newLinePlaceHolder, 'g'), '<br>').replace(new RegExp(spacePlaceHolder, 'g'), '&nbsp;');
     }
 
     visualizeExports() {
@@ -1546,13 +1622,14 @@ class StaticAnalyzer {
 }
 
 StaticAnalyzer.scopeTypes = {
-    es5: 0b00000000,
-    es6: 0b10000000,
-    class: 0b00000001,
-    function: 0b00000010,
-    arrowFunction: 0b00000100,
-    for: 0b00001000,
-    if: 0b00010000,
-    while: 0b00100000,
-    do: 0b01000000,
+    es5: 0b000000000,
+    es6: 0b100000000,
+    oneLine: 0b010000000,
+    class: 0b000000001,
+    function: 0b000000010,
+    arrowFunction: 0b000000100,
+    for: 0b000001000,
+    if: 0b000010000,
+    while: 0b000100000,
+    do: 0b001000000
 };
