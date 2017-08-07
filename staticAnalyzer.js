@@ -496,34 +496,35 @@ class StaticAnalyzer {
                     } else if (inLiteralString && cur === '}'.charCodeAt(0)) {
                         state = s.literalString;
                         inLiteralString = false;
-                    } else if (cur === '{'.charCodeAt(0)) {
-                        saveScope(cur);
-                    } else if (cur === '}'.charCodeAt(0)) {
-                        saveScope(cur);
-                    } else if (cur === '='.charCodeAt(0) && this.source.charCodeAt(i + 1) === '>'.charCodeAt(0)) {
-                        saveScope(cur, StaticAnalyzer.scopeTypes.arrowFunction);
-                    } else if (bracketStack[bracketStack.length - 1] === -1) {
-                        if (cur === ';'.charCodeAt(0)) {
-                            saveScope(-2, StaticAnalyzer.scopeTypes.oneLine); // one line code has come to an end
-                        } else if (cur === '\n'.charCodeAt(0)) {
-                            let tmp = this.skipNonCode(i, -1)[0];
-                            // todo: this doesn't work if a oneliner is directly in the end of the file
-                            if (oneLinerSplitters.indexOf(this.source.charCodeAt(tmp)) === -1) {
-                                // todo: figure out how to skip code here so we can check after \n
-                                saveScope(-2, StaticAnalyzer.scopeTypes.oneLine); // one line code has come to an end
-                                // isOneLinerEnter = true;
-                            }
-                        }
-                    } else {
-                        const bracket = brackets.indexOf(cur);
-                        if (bracket !== -1) {
-                            if (bracket < brackets.length / 2) { // opening
-                                bracketStack.push(bracket);
-                            }
-                            else { // closing
-                                bracketStack.pop();
-                            }
-                        }
+                        // } else if (cur === '{'.charCodeAt(0)) {
+                        //     saveScope(cur);
+                        // } else if (cur === '}'.charCodeAt(0)) {
+                        //     saveScope(cur);
+                        // } else if (cur === '='.charCodeAt(0) && this.source.charCodeAt(i + 1) === '>'.charCodeAt(0)) {
+                        //     saveScope(cur, StaticAnalyzer.scopeTypes.arrowFunction);
+                        // } else if (bracketStack[bracketStack.length - 1] === -1) {
+                        //     if (cur === ';'.charCodeAt(0)) {
+                        //         saveScope(-2, StaticAnalyzer.scopeTypes.oneLine); // one line code has come to an end
+                        //     } else if (cur === '\n'.charCodeAt(0)) {
+                        //         let tmp = this.skipNonCode(i, -1)[0];
+                        //         // todo: this doesn't work if a oneliner is directly in the end of the file
+                        //         if (oneLinerSplitters.indexOf(this.source.charCodeAt(tmp)) === -1) {
+                        //             // todo: figure out how to skip code here so we can check after \n
+                        //             saveScope(-2, StaticAnalyzer.scopeTypes.oneLine); // one line code has come to an end
+                        //             // isOneLinerEnter = true;
+                        //         }
+                        //     }
+                        // } else {
+                        //     const bracket = brackets.indexOf(cur);
+                        //     if (bracket !== -1) {
+                        //         if (bracket < brackets.length / 2) { // opening
+                        //             bracketStack.push(bracket);
+                        //         }
+                        //         else { // closing
+                        //             bracketStack.pop();
+                        //         }
+                        //     }
+                        // }
                     }
 
                     break;
@@ -625,14 +626,155 @@ class StaticAnalyzer {
         const n = this.source.length;
         let i = 0;
 
-        const s = {
+        const es6Scopes = this._es6Scopes;
+        const scopeGraph = this._es6ScopeGraph;
 
+        const scopeStack = [];
+        let scopeStackSize = 0;
+
+        const s = {
+            anything: 0
+        };
+
+        let state = s.anything;
+        let curCommentIndex = 0;
+
+        //todo: one line arrow functions, for, if, while, do
+        const saveScope = (bracket, scopeType = StaticAnalyzer.scopeTypes.es6) => {
+
+            let isOpening = false;
+            let scopeStart = i;
+            let j = i;
+
+            // todo: make a debug flag for these things
+            this._scopeString += String.fromCharCode(bracket);
+
+            switch (scopeType) {
+                case StaticAnalyzer.scopeTypes.arrowFunction:
+                    // debugger;
+                    [i, _] = this.skipNonCode(i + 2);
+                    scopeStart = i;
+                    i++;
+                    let c = j - 1;
+                    c--;
+                    [c, _] = this.skipNonCode(c, -1); // add curCommentIndex
+                    let closingRoundBracket = c;
+                    let openingRoundBracket = null;
+
+                    if (this.source.charCodeAt(c) !== ')'.charCodeAt(0)) {
+                        closingRoundBracket++;
+                        c = this.getWordFromIndex(c)[0];
+                        // todo: figure out if this if j or j+1
+                        openingRoundBracket = c;
+                    } else {
+                        [c, _] = this.skipBrackets(c); //  add curCommentIndex
+                        openingRoundBracket = c;
+                    }
+
+                    scopeType = StaticAnalyzer.scopeTypes.arrowFunction;
+
+                    if (this.source.charCodeAt(i - 1) !== '{'.charCodeAt(0)) {
+                        scopeType = scopeType | StaticAnalyzer.scopeTypes.oneLine;
+                        bracketStack.push(-1);
+                    }
+
+                    this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
+
+
+                    isOpening = true;
+                    break;
+                case StaticAnalyzer.scopeTypes.oneLine:
+                    isOpening = false;
+                    // bracketStack.pop();
+                    break;
+            }
+
+            if (bracket === '{'.charCodeAt(0)) {
+                // bracketStack.push(bracket);
+                isOpening = true;
+                j = this.skipNonCode(i - 1, -1);
+
+                // checking if the scope is a function
+                if (this.source.charCodeAt(j) === ')'.charCodeAt(0)) {
+                    const closingRoundBracket = j;
+
+                    [j, _] = this.skipBrackets(j);
+                    const openingRoundBracket = j;
+
+                    let tmpI = 0;
+
+                    while (tmpI++ < 2) {
+                        j--;
+                        [j, _] = this.skipNonCode(j, -1); // add curCommentIndex
+                        const nextWord = this.getWordFromIndex(j);
+                        const cur = this.source.substring(nextWord[0], nextWord[1]);
+                        j = nextWord[0];
+                        // const fcn = function(a,b,c){...}
+                        if (es5Scopes.indexOf(cur) !== -1) {
+                            scopeType = StaticAnalyzer.scopeTypes.function;
+                            this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
+                            // scopeStart = j;
+                        }
+                    }
+
+                }
+
+            }
+
+
+            if (isOpening) {
+                // we put everything in es6 scopes since it contains all other types
+                // then we distinguish them later.
+                const scopes = this._es6Scopes;
+
+                // add new scope we just found to the graph
+                scopeGraph.push([]);
+                // check if there is a scope which contains it
+                if (scopeGraph[scopeStack[scopeStackSize - 1]]) {
+                    // push the current scope to its parent
+                    // note: es6Scopes[0].length without -1 because \
+                    // we haven't yet added the current one
+                    scopeGraph[scopeStack[scopeStackSize - 1]].push(es6Scopes[0].length);
+                }
+                // add both beginning and ending of the scope we found
+                // the ending is NaN because we will fill it in later
+                es6Scopes[0].push(scopeStart);
+                es6Scopes[1].push(NaN);
+                // check if our array has enough space to add an element
+                if (scopeStack.length < scopeStackSize) {
+                    // if it does not use .push
+                    scopeStack.push(es6Scopes[0].length - 1);
+                }
+                else {
+                    // otherwise just set the element we need
+                    scopeStack[scopeStackSize] = es6Scopes[0].length - 1;
+                }
+                scopeStackSize++;
+            } else {
+                // change the value we put as NaN earlier
+                es6Scopes[1][scopeStack[scopeStackSize - 1]] = i;
+                this._closingScopesSorted[0].push(i);
+                this._closingScopesSorted[1].push(scopeStack[scopeStackSize - 1]);
+
+                scopeStackSize--;
+                // bracketStack.pop();
+            }
+            console.log(scopeStart, scopeType.toString(2));
+
+            //es6Scopes.push([i, bracket]);
         };
 
         while (i < n) {
             const cur = this.source.charCodeAt(i);
+            [i, curCommentIndex] = this.skipNonCode(++i, 1, curCommentIndex);
 
-            i++;
+
+            if (cur === '{'.charCodeAt(0)) {
+                saveScope(cur);
+            } else if (cur === '}'.charCodeAt(0)) {
+                saveScope(cur);
+            }
+
         }
     }
 
