@@ -1,15 +1,12 @@
-function uxt() {
+let x = 10;
 
-}
-
-
-const fcn = function () {
-
-};
-
-const arrFcn = () => {
-    if (true) {
-
+{
+    function a() {
+        x += 10;
+        console.log(x);
     }
-};
 
+    let y = 30, x = 29, z = 10;
+
+    a();
+}
