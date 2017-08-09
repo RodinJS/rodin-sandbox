@@ -656,6 +656,14 @@ class StaticAnalyzer {
         if (isNaN(curCommentIndex))
             curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
 
+        // todo: @sergi het es pah@ qnnarkel mihat
+        if(curCommentIndex === true || curCommentIndex === false) {
+            skipNewLine = skipWhitespace;
+            skipWhitespace = skipComments;
+            skipComments = curCommentIndex;
+            curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
+        }
+
         while (j < this.source.length && j >= 0) {
             if (skipComments && curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
                 this._commentsAndStrings[curCommentIndex][0] <= j && j <= this._commentsAndStrings[curCommentIndex][1]) {
@@ -669,6 +677,7 @@ class StaticAnalyzer {
                 continue;
             }
 
+            // todo: remove it when all refactoring will done
             // if (this.source.charCodeAt(j) <= 32) {
             //     j += direction;
             //     continue;
@@ -1449,17 +1458,17 @@ class StaticAnalyzer {
         const isMultivariable = [true, true, true, false, false, false];
 
         const isDeclaration = (index, scope = this.findScope(index)) => {
+            // todo: fix it when @serg will provide data
+            // if(insideFunctionParams) {
+            //     return isfunctionDefinition
+            // }
+
             const scopeStart = scope === -1 ? 0 : this._es6Scopes[0][scope];
             // we need to check for commas not just keywords for multiple definition variables
             [index, _] = this.skipNonCode(index - 1, -1);
 
             // multivariable case
             if (this.source.charCodeAt(index) === ','.charCodeAt(0)) {
-                // todo: fix it when @serg will provide data
-                // if(insideFunctionParams) {
-                //     return isfunctionDefinition
-                // }
-
                 // todo: go back until var/let/const...
                 // todo: gor has this code somewhere, find it
                 // todo: put it here :D
@@ -1468,13 +1477,13 @@ class StaticAnalyzer {
                 let nonCodeSkipped = false;
                 while (index > scopeStart) {
                     index--;
-                    [newIndex, _] = this.skipNonCode(index, -1);
+                    [newIndex, _] = this.skipNonCode(index, -1, true, true, false);
                     nonCodeSkipped = index !== newIndex;
                     index = newIndex;
                     [index, _] = this.skipBrackets(index);
-                    console.log('asd', index, this.source.charAt(index), nonCodeSkipped);
                 }
             }
+
             let i = 0;
             let curLength = 0;
             const len = declarationTypes.length;
