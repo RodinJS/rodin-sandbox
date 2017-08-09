@@ -20,16 +20,21 @@ const u = () => console
 }
 
 
-const e = (a, b, c, d) => {
+const e = (a, b, c, d) /*sdf;lksd;lfk;lsdkf;ls*/ => {
     return a + b + c - d + 1 * Math.log(c)
 }
 const e1 = (a, b, c, d) => {
     return a + b + c - d + 1 * Math.log(c)
 };
-const e2 = (a, b, c, d) => a + b + c - d + 1 * Math.log(c)
+const e2 = (a, b, c, d) => a /*a comment*/ + b + c - d + 1 * Math.log(c)
 const e3 = (a, b, c, d) => a + b + c - d + 1 * Math.log(c);
 const e4 = (a, b, c, d) => (a + b + c - d + 1 * Math.log(c))
 const e5 = (a, b, c, d) => (a + b + c - d + 1 * Math.log(c));
+const e6 = (a,b,c,d)=> // a comment
+1+2+c
+const e7 = (a,b,c,d)=> // a comment
+1+2+c;
+
 
 const n_e = a => {
     return a + b + c - d + 1 * Math.log(c)

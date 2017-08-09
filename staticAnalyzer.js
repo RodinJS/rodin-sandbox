@@ -641,9 +641,10 @@ class StaticAnalyzer {
         let state = s.anything;
         let curCommentIndex = 0;
         const oneLinerSplitters = ['+', '-', '/', '*', '%', '[', ']', '}', '(', '.'].map(x => x.charCodeAt(0));
+        const es5Functions = ['function', 'function*'];
 
-        const expressionSplitters = [];
-        const statementSplitters = [];
+        const expressionSplitters = [',', '+', '-', '/', '*', '%', '[', ']', '}', '(', '.'].map(x => x.charCodeAt(0));
+        const statementSplitters = ['+', '-', '/', '*', '%', '[', ']', '}', '(', '.'].map(x => x.charCodeAt(0));
 
         //todo: one line arrow functions, for, if, while, do
         const saveScope = (bracket, scopeType = StaticAnalyzer.scopeTypes.es6) => {
@@ -652,7 +653,9 @@ class StaticAnalyzer {
             let scopeStart = i;
             let scopeEnd = i;
             let j = i;
-
+            // cur comment index!!!!!
+            let cci = null;
+            let c = null;
             // todo: make a debug flag for these things
             this._scopeString += String.fromCharCode(bracket);
 
@@ -662,9 +665,9 @@ class StaticAnalyzer {
                     [i, _] = this.skipNonCode(i + 2);
                     scopeStart = i;
                     i++;
-                    let c = j - 1;
+                    c = j - 1;
                     c--;
-                    [c, _] = this.skipNonCode(c, -1); // add curCommentIndex
+                    [c, cci] = this.skipNonCode(c, -1); // add curCommentIndex
                     let closingRoundBracket = c;
                     let openingRoundBracket = null;
 
@@ -676,7 +679,7 @@ class StaticAnalyzer {
                         openingRoundBracket = c;
                     } else {
                         // (a,b,c)=>
-                        [c, _] = this.skipBrackets(c); //  add curCommentIndex
+                        [c, cci] = this.skipBrackets(c, cci); //  add curCommentIndex
                         openingRoundBracket = c;
                     }
 
@@ -698,10 +701,29 @@ class StaticAnalyzer {
 
                     isOpening = true;
                     break;
+                case StaticAnalyzer.scopeTypes.singleStatement:
                 case StaticAnalyzer.scopeTypes.expression:
                     isOpening = false;
                     scopeEnd = i - 1;
                     bracketStack.pop();
+                    break;
+                case StaticAnalyzer.scopeTypes.for:
+                    isOpening = true;
+                    scopeStart = i;
+                    [i, cci] = this.skipNonCode(i + 3);
+                    [i, _] = this.skipBrackets(i, cci);
+                    [i, cci] = this.skipNonCode(++i);
+
+                    i++;
+
+                    if (this.source.charCodeAt(i - 1) !== '{'.charCodeAt(0)) {
+                        // revert back one character so things like ({}) will work
+                        i -= 2;
+                        scopeType = scopeType | StaticAnalyzer.scopeTypes.singleStatement;
+                        bracket = -3; // no bracket at all, but a statement instead of an expression
+                    }
+
+                    this._scopeData.push([scopeType, []]);
                     break;
             }
 
@@ -709,7 +731,7 @@ class StaticAnalyzer {
             if (bracket === '{'.charCodeAt(0)) {
                 // bracketStack.push(bracket);
                 isOpening = true;
-                j = this.skipNonCode(i - 1, -1);
+                [j, _] = this.skipNonCode(i - 1, -1);
 
                 // checking if the scope is a function
                 if (this.source.charCodeAt(j) === ')'.charCodeAt(0)) {
@@ -727,7 +749,7 @@ class StaticAnalyzer {
                         const cur = this.source.substring(nextWord[0], nextWord[1]);
                         j = nextWord[0];
                         // const fcn = function(a,b,c){...}
-                        if (es5Scopes.indexOf(cur) !== -1) {
+                        if (es5Functions.indexOf(cur) !== -1) {
                             scopeType = StaticAnalyzer.scopeTypes.function;
                             this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
                             // scopeStart = j;
@@ -778,7 +800,7 @@ class StaticAnalyzer {
                 scopeStackSize--;
                 bracketStack.pop();
             }
-            console.log(scopeStart, scopeType.toString(2));
+            // console.log(scopeStart, scopeType.toString(2));
 
             //es6Scopes.push([i, bracket]);
         };
@@ -792,27 +814,48 @@ class StaticAnalyzer {
                 saveScope(cur);
             } else if (cur === '='.charCodeAt(0) && this.source.charCodeAt(i + 1) === '>'.charCodeAt(0)) {
                 saveScope(cur, StaticAnalyzer.scopeTypes.arrowFunction);
-            } else if (cur === '('.charCodeAt(0) || cur === '['.charCodeAt(0)) {
-                bracketStack.push(cur);
-            } else if (cur === ')'.charCodeAt(0) || cur === ']'.charCodeAt(0)) {
-                bracketStack.pop();
-            }
-            if (bracketStack[bracketStack.length - 1] === -1) {
-                if (cur === ';'.charCodeAt(0) || cur === ','.charCodeAt(0)) {
-                    saveScope(-2, StaticAnalyzer.scopeTypes.expression);
-                } else if (cur === '\n'.charCodeAt(0)) {
-                    let a = i, b = i;
-                    [a, _] = this.skipNonCode(a, -1);
-                    [b, _] = this.skipNonCode(b, 1);
-                    if (oneLinerSplitters.indexOf(this.source.charCodeAt(a)) === -1 &&
-                        oneLinerSplitters.indexOf(this.source.charCodeAt(b)) === -1) {
-                        saveScope(-2, StaticAnalyzer.scopeTypes.expression);
-                    }
+            } else if (cur === 'f'.charCodeAt(0) && this.source.charCodeAt(i + 1) === 'o'.charCodeAt(0) && this.source.charCodeAt(i + 2) === 'r'.charCodeAt(0)) {
+                saveScope(cur, StaticAnalyzer.scopeTypes.for);
+            } else {
+                if (cur === '('.charCodeAt(0) || cur === '['.charCodeAt(0)) {
+                    bracketStack.push(cur);
+                } else if (cur === ')'.charCodeAt(0) || cur === ']'.charCodeAt(0)) {
+                    bracketStack.pop();
+                }
 
+                if (bracketStack[bracketStack.length - 1] === -1) {
+                    if (cur === ';'.charCodeAt(0) || cur === ','.charCodeAt(0)) {
+                        saveScope(-2, StaticAnalyzer.scopeTypes.expression);
+                    } else if (cur === '\n'.charCodeAt(0)) {
+                        let a = i, b = i;
+                        [a, _] = this.skipNonCode(a, -1);
+                        [b, _] = this.skipNonCode(b, 1);
+                        if (statementSplitters.indexOf(this.source.charCodeAt(a)) === -1 &&
+                            statementSplitters.indexOf(this.source.charCodeAt(b)) === -1) {
+                            saveScope(-2, StaticAnalyzer.scopeTypes.expression);
+                        }
+
+                    }
+                }
+
+                if (bracketStack[bracketStack.length - 1] === -3) {
+                    if (cur === ';'.charCodeAt(0)) {
+                        saveScope(-2, StaticAnalyzer.scopeTypes.singleStatement);
+                    } else if (cur === '\n'.charCodeAt(0)) {
+                        let a = i, b = i;
+                        [a, _] = this.skipNonCode(a, -1);
+                        [b, _] = this.skipNonCode(b, 1);
+                        if (expressionSplitters.indexOf(this.source.charCodeAt(a)) === -1 &&
+                            expressionSplitters.indexOf(this.source.charCodeAt(b)) === -1) {
+                            saveScope(-2, StaticAnalyzer.scopeTypes.singleStatement);
+                        }
+
+                    }
                 }
             }
-            //[i, curCommentIndex] = this.skipNonCode(++i, 1, curCommentIndex);
-            i++;
+
+            [i, curCommentIndex] = this.skipNonCode(++i, 1, curCommentIndex, true, true, false);
+            // i++;
 
         }
     }
@@ -1817,14 +1860,15 @@ class StaticAnalyzer {
 }
 
 StaticAnalyzer.scopeTypes = {
-    es5: 0b000000000,
-    es6: 0b100000000,
-    expression: 0b010000000,
-    class: 0b000000001,
-    function: 0b000000010,
-    arrowFunction: 0b000000100,
-    for: 0b000001000,
-    if: 0b000010000,
-    while: 0b000100000,
-    do: 0b001000000
+    es5: 0b0000000000,
+    es6: 0b1000000000,
+    singleStatement: 0b0100000000,
+    expression: 0b0010000000,
+    class: 0b0000000001,
+    function: 0b0000000010,
+    arrowFunction: 0b0000000100,
+    for: 0b0000001000,
+    if: 0b0000010000,
+    while: 0b0000100000,
+    do: 0b0001000000
 };
