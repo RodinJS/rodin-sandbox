@@ -131,22 +131,22 @@ class StaticAnalyzer {
     // 	this._commentsAndStringsAnalyzed = true;
     // }
 
-    analyzeScopes() {
-        const allNeedles = findNeedles(this.source, scopeNeedles);
-        const needles = [];
-        const length = allNeedles.length;
-
-        for (let i = 0; i < length; i++) {
-            if (!this.isCommentOrString(allNeedles[i][0])) {
-                needles.push(allNeedles[i]);
-            }
-        }
-
-        window.allNeedles = allNeedles;
-        window.needles = needles;
-
-        this.scopes = needles.map(a => a[0]);
-    }
+    // analyzeScopes() {
+    //     const allNeedles = findNeedles(this.source, scopeNeedles);
+    //     const needles = [];
+    //     const length = allNeedles.length;
+    //
+    //     for (let i = 0; i < length; i++) {
+    //         if (!this.isCommentOrString(allNeedles[i][0])) {
+    //             needles.push(allNeedles[i]);
+    //         }
+    //     }
+    //
+    //     window.allNeedles = allNeedles;
+    //     window.needles = needles;
+    //
+    //     this.scopes = needles.map(a => a[0]);
+    // }
 
     analyzeCommentsAndStrings() {
         // const allNeedles = findNeedles(this.source, scopeNeedles);
@@ -203,7 +203,7 @@ class StaticAnalyzer {
         const charsBeforeRegex = ['=', '+', '-', '/', '*', '%', '(', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?', '>', '<'];
         const charsAfterRegex = ['=', '+', '-', '/', '*', '%', ')', ']', ';', ',', '}'];
 
-        const oneLinerSplitters = ['+', '-', '/', '*', '%', '[', ']', '(', ')', '{', '}', '.'].map(x => x.charCodeAt(0));
+        // const oneLinerSplitters = ['+', '-', '/', '*', '%', '[', ']', '(', ')', '{', '}', '.'].map(x => x.charCodeAt(0));
 
 
         const wordsBeforeRegex = ['return', 'yield', 'typeof', 'case', 'do', 'else'];
@@ -222,7 +222,7 @@ class StaticAnalyzer {
         const skipNonCode = (j) => {
             let resI = commentsAndStrings.length - 1;
             while (j >= 0 && (this.source.charCodeAt(j) <= 32 || /* || this.source.charCodeAt(j) === 10 || /!*this.source.charCodeAt(j) === 9 ||*!/*/
-                (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j))) {
+            (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j))) {
                 j--;
                 if (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j) {
                     j = commentsAndStrings[resI][0] - 1;
@@ -339,129 +339,129 @@ class StaticAnalyzer {
 
 
         //todo: one line arrow functions, for, if, while, do
-        const saveScope = (bracket, scopeType = StaticAnalyzer.scopeTypes.es6) => {
-
-            let isOpening = false;
-            let scopeStart = i;
-            let j = i;
-
-            // todo: make a debug flag for these things
-            this._scopeString += String.fromCharCode(bracket);
-
-            switch (scopeType) {
-                case StaticAnalyzer.scopeTypes.arrowFunction:
-                    // debugger;
-                    [i, _] = this.skipNonCode(i + 2);
-                    scopeStart = i;
-                    i++;
-                    let c = j - 1;
-                    c--;
-                    [c, _] = this.skipNonCode(c, -1); // add curCommentIndex
-                    let closingRoundBracket = c;
-                    let openingRoundBracket = null;
-
-                    if (this.source.charCodeAt(c) !== ')'.charCodeAt(0)) {
-                        closingRoundBracket++;
-                        c = this.getWordFromIndex(c)[0];
-                        // todo: figure out if this if j or j+1
-                        openingRoundBracket = c;
-                    } else {
-                        [c, _] = this.skipBrackets(c); //  add curCommentIndex
-                        openingRoundBracket = c;
-                    }
-
-                    scopeType = StaticAnalyzer.scopeTypes.arrowFunction;
-
-                    if (this.source.charCodeAt(i - 1) !== '{'.charCodeAt(0)) {
-                        scopeType = scopeType | StaticAnalyzer.scopeTypes.oneLine;
-                        bracketStack.push(-1);
-                    }
-
-                    this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
-
-
-                    isOpening = true;
-                    break;
-                case StaticAnalyzer.scopeTypes.oneLine:
-                    isOpening = false;
-                    bracketStack.pop();
-                    break;
-            }
-
-            if (bracket === '{'.charCodeAt(0)) {
-                bracketStack.push(bracket);
-                isOpening = true;
-                j = skipNonCode(i - 1);
-
-                // checking if the scope is a function
-                if (this.source.charCodeAt(j) === ')'.charCodeAt(0)) {
-                    const closingRoundBracket = j;
-
-                    [j, _] = this.skipBrackets(j);
-                    const openingRoundBracket = j;
-
-                    let tmpI = 0;
-
-                    while (tmpI++ < 2) {
-                        j--;
-                        [j, _] = this.skipNonCode(j, -1); // add curCommentIndex
-                        const nextWord = this.getWordFromIndex(j);
-                        const cur = this.source.substring(nextWord[0], nextWord[1]);
-                        j = nextWord[0];
-                        // const fcn = function(a,b,c){...}
-                        if (es5Scopes.indexOf(cur) !== -1) {
-                            scopeType = StaticAnalyzer.scopeTypes.function;
-                            this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
-                            // scopeStart = j;
-                        }
-                    }
-
-                }
-
-            }
-
-
-            if (isOpening) {
-                // we put everything in es6 scopes since it contains all other types
-                // then we distinguish them later.
-                const scopes = this._es6Scopes;
-
-                // add new scope we just found to the graph
-                scopeGraph.push([]);
-                // check if there is a scope which contains it
-                if (scopeGraph[scopeStack[scopeStackSize - 1]]) {
-                    // push the current scope to its parent
-                    // note: es6Scopes[0].length without -1 because \
-                    // we haven't yet added the current one
-                    scopeGraph[scopeStack[scopeStackSize - 1]].push(es6Scopes[0].length);
-                }
-                // add both beginning and ending of the scope we found
-                // the ending is NaN because we will fill it in later
-                es6Scopes[0].push(scopeStart);
-                es6Scopes[1].push(NaN);
-                // check if our array has enough space to add an element
-                if (scopeStack.length < scopeStackSize) {
-                    // if it does not use .push
-                    scopeStack.push(es6Scopes[0].length - 1);
-                }
-                else {
-                    // otherwise just set the element we need
-                    scopeStack[scopeStackSize] = es6Scopes[0].length - 1;
-                }
-                scopeStackSize++;
-            } else {
-                // change the value we put as NaN earlier
-                es6Scopes[1][scopeStack[scopeStackSize - 1]] = i;
-                this._closingScopesSorted[0].push(i);
-                this._closingScopesSorted[1].push(scopeStack[scopeStackSize - 1]);
-
-                scopeStackSize--;
-                bracketStack.pop();
-            }
-            console.log(scopeStart, scopeType.toString(2));
-
-            //es6Scopes.push([i, bracket]);
-        };
+        // const saveScope = (bracket, scopeType = StaticAnalyzer.scopeTypes.es6) => {
+        //
+        //     let isOpening = false;
+        //     let scopeStart = i;
+        //     let j = i;
+        //
+        //     // todo: make a debug flag for these things
+        //     this._scopeString += String.fromCharCode(bracket);
+        //
+        //     switch (scopeType) {
+        //         case StaticAnalyzer.scopeTypes.arrowFunction:
+        //             // debugger;
+        //             [i, _] = this.skipNonCode(i + 2);
+        //             scopeStart = i;
+        //             i++;
+        //             let c = j - 1;
+        //             c--;
+        //             [c, _] = this.skipNonCode(c, -1); // add curCommentIndex
+        //             let closingRoundBracket = c;
+        //             let openingRoundBracket = null;
+        //
+        //             if (this.source.charCodeAt(c) !== ')'.charCodeAt(0)) {
+        //                 closingRoundBracket++;
+        //                 c = this.getWordFromIndex(c)[0];
+        //                 // todo: figure out if this if j or j+1
+        //                 openingRoundBracket = c;
+        //             } else {
+        //                 [c, _] = this.skipBrackets(c); //  add curCommentIndex
+        //                 openingRoundBracket = c;
+        //             }
+        //
+        //             scopeType = StaticAnalyzer.scopeTypes.arrowFunction;
+        //
+        //             if (this.source.charCodeAt(i - 1) !== '{'.charCodeAt(0)) {
+        //                 scopeType = scopeType | StaticAnalyzer.scopeTypes.expression;
+        //                 bracketStack.push(-1);
+        //             }
+        //
+        //             this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
+        //
+        //
+        //             isOpening = true;
+        //             break;
+        //         case StaticAnalyzer.scopeTypes.expression:
+        //             isOpening = false;
+        //             bracketStack.pop();
+        //             break;
+        //     }
+        //
+        //     if (bracket === '{'.charCodeAt(0)) {
+        //         bracketStack.push(bracket);
+        //         isOpening = true;
+        //         j = skipNonCode(i - 1);
+        //
+        //         // checking if the scope is a function
+        //         if (this.source.charCodeAt(j) === ')'.charCodeAt(0)) {
+        //             const closingRoundBracket = j;
+        //
+        //             [j, _] = this.skipBrackets(j);
+        //             const openingRoundBracket = j;
+        //
+        //             let tmpI = 0;
+        //
+        //             while (tmpI++ < 2) {
+        //                 j--;
+        //                 [j, _] = this.skipNonCode(j, -1); // add curCommentIndex
+        //                 const nextWord = this.getWordFromIndex(j);
+        //                 const cur = this.source.substring(nextWord[0], nextWord[1]);
+        //                 j = nextWord[0];
+        //                 // const fcn = function(a,b,c){...}
+        //                 if (es5Scopes.indexOf(cur) !== -1) {
+        //                     scopeType = StaticAnalyzer.scopeTypes.function;
+        //                     this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
+        //                     // scopeStart = j;
+        //                 }
+        //             }
+        //
+        //         }
+        //
+        //     }
+        //
+        //
+        //     if (isOpening) {
+        //         // we put everything in es6 scopes since it contains all other types
+        //         // then we distinguish them later.
+        //         const scopes = this._es6Scopes;
+        //
+        //         // add new scope we just found to the graph
+        //         scopeGraph.push([]);
+        //         // check if there is a scope which contains it
+        //         if (scopeGraph[scopeStack[scopeStackSize - 1]]) {
+        //             // push the current scope to its parent
+        //             // note: es6Scopes[0].length without -1 because \
+        //             // we haven't yet added the current one
+        //             scopeGraph[scopeStack[scopeStackSize - 1]].push(es6Scopes[0].length);
+        //         }
+        //         // add both beginning and ending of the scope we found
+        //         // the ending is NaN because we will fill it in later
+        //         es6Scopes[0].push(scopeStart);
+        //         es6Scopes[1].push(NaN);
+        //         // check if our array has enough space to add an element
+        //         if (scopeStack.length < scopeStackSize) {
+        //             // if it does not use .push
+        //             scopeStack.push(es6Scopes[0].length - 1);
+        //         }
+        //         else {
+        //             // otherwise just set the element we need
+        //             scopeStack[scopeStackSize] = es6Scopes[0].length - 1;
+        //         }
+        //         scopeStackSize++;
+        //     } else {
+        //         // change the value we put as NaN earlier
+        //         es6Scopes[1][scopeStack[scopeStackSize - 1]] = i;
+        //         this._closingScopesSorted[0].push(i);
+        //         this._closingScopesSorted[1].push(scopeStack[scopeStackSize - 1]);
+        //
+        //         scopeStackSize--;
+        //         bracketStack.pop();
+        //     }
+        //     console.log(scopeStart, scopeType.toString(2));
+        //
+        //     //es6Scopes.push([i, bracket]);
+        // };
 
         const saveResult = (end = i) => {
             instances.push(this.source.substring(start, end + 1));
@@ -481,7 +481,7 @@ class StaticAnalyzer {
                     //     oneLinerSplitters.indexOf(this.source.charCodeAt(i)) === -1) {
                     //     isOneLinerEnter = false;
                     //     // todo: check if this saves one more character after the scope
-                    //     saveScope(-2, StaticAnalyzer.scopeTypes.oneLine);
+                    //     saveScope(-2, StaticAnalyzer.scopeTypes.expression);
                     // }
 
                     start = i;
@@ -504,13 +504,13 @@ class StaticAnalyzer {
                         //     saveScope(cur, StaticAnalyzer.scopeTypes.arrowFunction);
                         // } else if (bracketStack[bracketStack.length - 1] === -1) {
                         //     if (cur === ';'.charCodeAt(0)) {
-                        //         saveScope(-2, StaticAnalyzer.scopeTypes.oneLine); // one line code has come to an end
+                        //         saveScope(-2, StaticAnalyzer.scopeTypes.expression); // one line code has come to an end
                         //     } else if (cur === '\n'.charCodeAt(0)) {
                         //         let tmp = this.skipNonCode(i, -1)[0];
                         //         // todo: this doesn't work if a oneliner is directly in the end of the file
                         //         if (oneLinerSplitters.indexOf(this.source.charCodeAt(tmp)) === -1) {
                         //             // todo: figure out how to skip code here so we can check after \n
-                        //             saveScope(-2, StaticAnalyzer.scopeTypes.oneLine); // one line code has come to an end
+                        //             saveScope(-2, StaticAnalyzer.scopeTypes.expression); // one line code has come to an end
                         //             // isOneLinerEnter = true;
                         //         }
                         //     }
@@ -632,18 +632,25 @@ class StaticAnalyzer {
         const scopeStack = [];
         let scopeStackSize = 0;
 
+        const bracketStack = [];
+
         const s = {
             anything: 0
         };
 
         let state = s.anything;
         let curCommentIndex = 0;
+        const oneLinerSplitters = ['+', '-', '/', '*', '%', '[', ']', '}', '(', '.'].map(x => x.charCodeAt(0));
+
+        const expressionSplitters = [];
+        const statementSplitters = [];
 
         //todo: one line arrow functions, for, if, while, do
         const saveScope = (bracket, scopeType = StaticAnalyzer.scopeTypes.es6) => {
 
             let isOpening = false;
             let scopeStart = i;
+            let scopeEnd = i;
             let j = i;
 
             // todo: make a debug flag for these things
@@ -661,21 +668,29 @@ class StaticAnalyzer {
                     let closingRoundBracket = c;
                     let openingRoundBracket = null;
 
+                    // a=>{}
                     if (this.source.charCodeAt(c) !== ')'.charCodeAt(0)) {
                         closingRoundBracket++;
                         c = this.getWordFromIndex(c)[0];
                         // todo: figure out if this if j or j+1
                         openingRoundBracket = c;
                     } else {
+                        // (a,b,c)=>
                         [c, _] = this.skipBrackets(c); //  add curCommentIndex
                         openingRoundBracket = c;
                     }
 
-                    scopeType = StaticAnalyzer.scopeTypes.arrowFunction;
+                    // scopeType = StaticAnalyzer.scopeTypes.arrowFunction;
 
+                    // if (this.source.charCodeAt(i - 1) !== '('.charCodeAt(0)) {
+                    //     scopeType = scopeType | StaticAnalyzer.scopeTypes.expression;
+                    //     bracket = -3; // round bracket
+                    // } else
                     if (this.source.charCodeAt(i - 1) !== '{'.charCodeAt(0)) {
-                        scopeType = scopeType | StaticAnalyzer.scopeTypes.oneLine;
-                        bracketStack.push(-1);
+                        // revert back one character so things like ({}) will work
+                        i -= 2;
+                        scopeType = scopeType | StaticAnalyzer.scopeTypes.expression;
+                        bracket = -1; // no bracket at all
                     }
 
                     this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
@@ -683,11 +698,13 @@ class StaticAnalyzer {
 
                     isOpening = true;
                     break;
-                case StaticAnalyzer.scopeTypes.oneLine:
+                case StaticAnalyzer.scopeTypes.expression:
                     isOpening = false;
-                    // bracketStack.pop();
+                    scopeEnd = i - 1;
+                    bracketStack.pop();
                     break;
             }
+
 
             if (bracket === '{'.charCodeAt(0)) {
                 // bracketStack.push(bracket);
@@ -723,6 +740,8 @@ class StaticAnalyzer {
 
 
             if (isOpening) {
+                bracketStack.push(bracket);
+
                 // we put everything in es6 scopes since it contains all other types
                 // then we distinguish them later.
                 const scopes = this._es6Scopes;
@@ -752,12 +771,12 @@ class StaticAnalyzer {
                 scopeStackSize++;
             } else {
                 // change the value we put as NaN earlier
-                es6Scopes[1][scopeStack[scopeStackSize - 1]] = i;
-                this._closingScopesSorted[0].push(i);
+                es6Scopes[1][scopeStack[scopeStackSize - 1]] = scopeEnd;
+                this._closingScopesSorted[0].push(scopeEnd);
                 this._closingScopesSorted[1].push(scopeStack[scopeStackSize - 1]);
 
                 scopeStackSize--;
-                // bracketStack.pop();
+                bracketStack.pop();
             }
             console.log(scopeStart, scopeType.toString(2));
 
@@ -766,14 +785,34 @@ class StaticAnalyzer {
 
         while (i < n) {
             const cur = this.source.charCodeAt(i);
-            [i, curCommentIndex] = this.skipNonCode(++i, 1, curCommentIndex);
-
 
             if (cur === '{'.charCodeAt(0)) {
                 saveScope(cur);
             } else if (cur === '}'.charCodeAt(0)) {
                 saveScope(cur);
+            } else if (cur === '='.charCodeAt(0) && this.source.charCodeAt(i + 1) === '>'.charCodeAt(0)) {
+                saveScope(cur, StaticAnalyzer.scopeTypes.arrowFunction);
+            } else if (cur === '('.charCodeAt(0) || cur === '['.charCodeAt(0)) {
+                bracketStack.push(cur);
+            } else if (cur === ')'.charCodeAt(0) || cur === ']'.charCodeAt(0)) {
+                bracketStack.pop();
             }
+            if (bracketStack[bracketStack.length - 1] === -1) {
+                if (cur === ';'.charCodeAt(0) || cur === ','.charCodeAt(0)) {
+                    saveScope(-2, StaticAnalyzer.scopeTypes.expression);
+                } else if (cur === '\n'.charCodeAt(0)) {
+                    let a = i, b = i;
+                    [a, _] = this.skipNonCode(a, -1);
+                    [b, _] = this.skipNonCode(b, 1);
+                    if (oneLinerSplitters.indexOf(this.source.charCodeAt(a)) === -1 &&
+                        oneLinerSplitters.indexOf(this.source.charCodeAt(b)) === -1) {
+                        saveScope(-2, StaticAnalyzer.scopeTypes.expression);
+                    }
+
+                }
+            }
+            //[i, curCommentIndex] = this.skipNonCode(++i, 1, curCommentIndex);
+            i++;
 
         }
     }
@@ -1780,7 +1819,7 @@ class StaticAnalyzer {
 StaticAnalyzer.scopeTypes = {
     es5: 0b000000000,
     es6: 0b100000000,
-    oneLine: 0b010000000,
+    expression: 0b010000000,
     class: 0b000000001,
     function: 0b000000010,
     arrowFunction: 0b000000100,
