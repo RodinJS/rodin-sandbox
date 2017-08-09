@@ -22,6 +22,10 @@ const runStuff = () => {
         res.push(`comments and string analysis: ${Date.now() - t}`);
 
         t = Date.now();
+        a.analyzeScopes();
+        res.push(`scopes analysis: ${Date.now() - t}`);
+
+        t = Date.now();
         a.findExports();
         res.push(`export analysis: ${Date.now() - t}`);
 
