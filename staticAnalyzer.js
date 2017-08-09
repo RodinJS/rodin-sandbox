@@ -823,6 +823,8 @@ class StaticAnalyzer {
                     bracketStack.pop();
                 }
 
+
+                // ++ -- needs fixing
                 if (bracketStack[bracketStack.length - 1] === -1) {
                     if (cur === ';'.charCodeAt(0) || cur === ','.charCodeAt(0)) {
                         saveScope(-2, StaticAnalyzer.scopeTypes.expression);
