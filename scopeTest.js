@@ -1,85 +1,103 @@
-for (let i = 0; i < 10; i++) {
-
-}
-
-for (let i=0;i<10;i++) console.log(i)
-for (let i=0;i<10;i++) console.log(i), true, false
-for (let i=0;i<10;i++) console.log(i), true, false;
-for (let i=0;i<10;i++) console.log(i), i++, i--
-for (let i=0;i<10;i++) console.log(i), i++, i--;
-for (let i=0;i<10;i++) console.log(i), i++, i--, i++
-for (let i=0;i<10;i++) console.log(i), i++, i--, i++;
-for (let i=0;i<10;i++) console.log(i), console.log(i)
-for (let i=0;i<10;i++) console.log(i), console.log(i);
-
-const d = () => ({a: 1})
-
-const m = () => console.log()
-
-
-let c = () => true
-
-
-const b = () => false
-
-
 {
-}
 
-const u = () => console
-    .log
-    ('asdasd')
+    for (let i = 0; i < 10; i++) console.log(i), i++, i--
+    for (let i = 0; i < 10; i++) console.log(i), i++, typeof
+        i
 
-{
-}
-
-
-const e = (a, b, c, d) /*sdf;lksd;lfk;lsdkf;ls*/ => {
-    return a + b + c - d + 1 * Math.log(c)
-}
-const e1 = (a, b, c, d) => {
-    return a + b + c - d + 1 * Math.log(c)
-};
-const e2 = (a, b, c, d) => a /*a comment*/ + b + c - d + 1 * Math.log(c)
-const e3 = (a, b, c, d) => a + b + c - d + 1 * Math.log(c);
-const e4 = (a, b, c, d) => (a + b + c - d + 1 * Math.log(c))
-const e5 = (a, b, c, d) => (a + b + c - d + 1 * Math.log(c));
-const e6 = (a, b, c, d) => // a comment
-1 + 2 + c
-const e7 = (a, b, c, d) => // a comment
-1 + 2 + c;
+    for (let i = 0; i < 10; i++) console.log(i), true, false;
+    for (let i = 0; i < 10; i++) console.log(i), i++, i--
 
 
-const n_e = a => {
-    return a + b + c - d + 1 * Math.log(c)
-}
-const n_e1 = a => {
-    return a + b + c - d + 1 * Math.log(c)
-};
-const n_e2 = a => a + b + c - d + 1 * Math.log(c)
-const n_e3 = a => a + b + c - d + 1 * Math.log(c);
-const n_e4 = a => (a + b + c - d + 1 * Math.log(c))
-const n_e5 = a => (a + b + c - d + 1 * Math.log(c));
-function f_1() {
-
-}
-
-var f_2 = function () {
-
-}
-
-class c_1 {
-    constructor() {
+    for (let i = 0; i < 10; i++) {
 
     }
 
-    a() {
+    for (let i = 0; i < 10; i++) console.log(i)
+    for (let i = 0; i < 10; i++) console.log(i), true, false
+    for (let i = 0; i < 10; i++) console.log(i), true, false;
+    for (let i = 0; i < 10; i++) console.log(i), i++, i--
+    for (let i = 0; i < 10; i++) console.log(i), i++, i--;
+    for (let i = 0; i < 10; i++) console.log(i), i++, i--, i++
+    for (let i = 0; i < 10; i++) console.log(i), i++, i--, i++;
+    for (let i = 0; i < 10; i++) console.log(i), console.log(i)
+    for (let i = 0; i < 10; i++) console.log(i), console.log(i);
+
+    const d = () => ({a: 1})
+
+    const m = () => console.log()
+
+
+    let c = () => true
+
+
+    const b = () => false
+
+
+    {
+    }
+
+    const u = () => console
+        .log
+        ('asdasd')
+
+    {
+    }
+
+
+    const e = (a, b, c, d) /*sdf;lksd;lfk;lsdkf;ls*/ => {
+        return a + b + c - d + 1 * Math.log(c)
+    }
+    const e1 = (a, b, c, d) => {
+        return a + b + c - d + 1 * Math.log(c)
+    };
+    const e2 = (a, b, c, d) => a /*a comment*/ + b + c - d + 1 * Math.log(c)
+    const e3 = (a, b, c, d) => a + b + c - d + 1 * Math.log(c);
+    const e4 = (a, b, c, d) => (a + b + c - d + 1 * Math.log(c))
+    const e5 = (a, b, c, d) => (a + b + c - d + 1 * Math.log(c));
+    const e6 = (a, b, c, d) => // a comment
+    1 + 2 + c
+    const e7 = (a, b, c, d) => // a comment
+    1 + 2 + c;
+    const e8 = (a, b, c, d) => (() => {
+        return 10
+    })() + a;
+    const e9 = (a, b, c, d) => a++
+
+
+    const n_e = a => {
+        return a + b + c - d + 1 * Math.log(c)
+    }
+    const n_e1 = a => {
+        return a + b + c - d + 1 * Math.log(c)
+    };
+    const n_e2 = a => a + b + c - d + 1 * Math.log(c)
+    const n_e3 = a => a + b + c - d + 1 * Math.log(c);
+    const n_e4 = a => (a + b + c - d + 1 * Math.log(c))
+    const n_e5 = a => (a + b + c - d + 1 * Math.log(c));
+
+    function f_1() {
 
     }
 
-    b() {
+    var f_2 = function () {
 
     }
+
+    class c_1 {
+        constructor() {
+
+        }
+
+        a() {
+
+        }
+
+        b() {
+
+        }
+    }
+
+    class c_2 {
+    }
+
 }
-
-class c_2{}
