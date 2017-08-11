@@ -646,6 +646,13 @@ class StaticAnalyzer {
         const expressionSplitters = [',', '+', '-', '/', '*', '%', '[', ']', '}', '(', '.'].map(x => x.charCodeAt(0));
         const statementSplitters = ['+', '-', '/', '*', '%', '[', ']', '}', '(', '.'].map(x => x.charCodeAt(0));
 
+        const bothOperators = ['+', '-', '/', '*', '%', '>', '<', '&', '|', '^', '=', '>=', '<=', '&=', '|=', '^=', '!=', '!==', '===', '<<=', '>>=', '>>>=', '?', ':', 'in', 'instanceof'];
+        const leftOperators = ['delete', 'typeof', 'void', '...', '++', '--', '~'];
+        const rightOperators = ['++', '--'];
+
+        const operatorChars = ['+', '-', '/', '*', '%', '>', '<', '&', '|', '^', '=', '?', ':', '~'].map(x => x.charCodeAt(0));
+        const operatorWords = ['instanceof', 'delete', 'typeof', 'void', 'in'];
+
         //todo: one line arrow functions, for, if, while, do
         const saveScope = (bracket, scopeType = StaticAnalyzer.scopeTypes.es6) => {
 
@@ -805,6 +812,26 @@ class StaticAnalyzer {
             //es6Scopes.push([i, bracket]);
         };
 
+        const doEvalCheck = (expr, direction = -1) => {
+            try {
+                let a = 0, b = 0;
+                switch (direction) {
+                    case -1:
+                        eval(`{a${expr}}`);
+                        break;
+                    case 0:
+                        eval(`{a${expr}b}`);
+                        break;
+                    case 1:
+                        eval(`{${expr}b}`);
+                }
+
+            } catch (e) {
+                return false;
+            }
+            return true;
+        };
+
         while (i < n) {
             const cur = this.source.charCodeAt(i);
 
@@ -840,20 +867,59 @@ class StaticAnalyzer {
                     }
                 }
 
+                // if (bracketStack[bracketStack.length - 1] === -3) {
+                //     if (cur === ';'.charCodeAt(0)) {
+                //         saveScope(-2, StaticAnalyzer.scopeTypes.singleStatement);
+                //     } else if (cur === '\n'.charCodeAt(0)) {
+                //         let a = i, b = i;
+                //         [a, _] = this.skipNonCode(a, -1);
+                //         [b, _] = this.skipNonCode(b, 1);
+                //         if (expressionSplitters.indexOf(this.source.charCodeAt(a)) === -1 &&
+                //             expressionSplitters.indexOf(this.source.charCodeAt(b)) === -1) {
+                //             saveScope(-2, StaticAnalyzer.scopeTypes.singleStatement);
+                //         }
+                //
+                //     }
+                // }
+
                 if (bracketStack[bracketStack.length - 1] === -3) {
                     if (cur === ';'.charCodeAt(0)) {
-                        saveScope(-2, StaticAnalyzer.scopeTypes.singleStatement);
+                        saveScope(-4, StaticAnalyzer.scopeTypes.singleStatement);
                     } else if (cur === '\n'.charCodeAt(0)) {
-                        let a = i, b = i;
-                        [a, _] = this.skipNonCode(a, -1);
-                        [b, _] = this.skipNonCode(b, 1);
-                        if (expressionSplitters.indexOf(this.source.charCodeAt(a)) === -1 &&
-                            expressionSplitters.indexOf(this.source.charCodeAt(b)) === -1) {
-                            saveScope(-2, StaticAnalyzer.scopeTypes.singleStatement);
+                        let a = i;
+                        let str = '';
+                        let cci = null;
+                        [a, cci] = this.skipNonCode(a, -1);
+                        while (true) {
+                            // debugger;
+                            if (operatorChars.indexOf(this.source.charCodeAt(a)) === -1) {
+                                let [s, e] = this.getWordFromIndex(a);
+                                const subStr = this.source.substring(s, e);
+                                if (operatorWords.indexOf(subStr) !== -1) {
+                                    str += subStr;
+                                    a = s - 1;
+                                } else {
+                                    break;
+                                }
+                            }
+                            str = this.source.charAt(a) + str;
+                            [a, cci] = this.skipNonCode(a - 1, -1, cci);
                         }
+                        console.log(str);
+                        if (doEvalCheck(str)) {
+                            saveScope(-4, StaticAnalyzer.scopeTypes.singleStatement);
+                        }
+
+                        // [b, _] = this.skipNonCode(b, 1);
+                        // if (expressionSplitters.indexOf(this.source.charCodeAt(a)) === -1 &&
+                        //     expressionSplitters.indexOf(this.source.charCodeAt(b)) === -1) {
+                        //     saveScope(-2, StaticAnalyzer.scopeTypes.singleStatement);
+                        // }
 
                     }
                 }
+
+
             }
 
             [i, curCommentIndex] = this.skipNonCode(++i, 1, curCommentIndex, true, true, false);
