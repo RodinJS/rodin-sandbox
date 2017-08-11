@@ -838,6 +838,34 @@ class StaticAnalyzer {
             return true;
         };
 
+        const checkIfExpressionIsOver = (bracketType) => {
+            let a = i;
+            let strArr = [];
+            const skipParams = {cci: null};
+            a = this.skipNonCodeNEW(a, skipParams, -1);
+            while (true) {
+                // debugger;
+                if (operatorChars.indexOf(this.source.charCodeAt(a)) === -1) {
+                    let [s, e] = this.getWordFromIndex(a);
+                    const subStr = this.source.substring(s, e);
+                    if (operatorWords.indexOf(subStr) !== -1) {
+                        // str += subStr.reverse();
+                        strArr.push(...subStr.split('').reverse());
+                        a = s - 1;
+                    } else {
+                        break;
+                    }
+                }
+                // str += this.source.charAt(a);
+                strArr.push(this.source.charAt(a));
+                a = this.skipNonCodeNEW(a - 1, skipParams, -1);
+            }
+            // console.log(str);
+            if (doEvalCheck(strArr.reverse().join(''))) {
+                saveScope(bracketType, StaticAnalyzer.scopeTypes.singleStatement);
+            }
+        };
+
         while (i < n) {
             const cur = this.source.charCodeAt(i);
 
@@ -867,14 +895,14 @@ class StaticAnalyzer {
                     if (cur === ';'.charCodeAt(0) || cur === ','.charCodeAt(0)) {
                         saveScope(-2, StaticAnalyzer.scopeTypes.expression);
                     } else if (cur === '\n'.charCodeAt(0)) {
-                        let a = i, b = i;
-                        [a, _] = this.skipNonCode(a, -1);
-                        [b, _] = this.skipNonCode(b, 1);
-                        if (statementSplitters.indexOf(this.source.charCodeAt(a)) === -1 &&
-                            statementSplitters.indexOf(this.source.charCodeAt(b)) === -1) {
-                            saveScope(-2, StaticAnalyzer.scopeTypes.expression);
-                        }
-
+                        // let a = i, b = i;
+                        // [a, _] = this.skipNonCode(a, -1);
+                        // [b, _] = this.skipNonCode(b, 1);
+                        // if (statementSplitters.indexOf(this.source.charCodeAt(a)) === -1 &&
+                        //     statementSplitters.indexOf(this.source.charCodeAt(b)) === -1) {
+                        //     saveScope(-2, StaticAnalyzer.scopeTypes.expression);
+                        // }
+                        checkIfExpressionIsOver(-2);
                     }
                 }
 
@@ -897,37 +925,7 @@ class StaticAnalyzer {
                     if (cur === ';'.charCodeAt(0)) {
                         saveScope(-4, StaticAnalyzer.scopeTypes.singleStatement);
                     } else if (cur === '\n'.charCodeAt(0)) {
-                        let a = i;
-                        let strArr = [];
-                        let cci = null;
-                        [a, cci] = this.skipNonCode(a, -1);
-                        while (true) {
-                            // debugger;
-                            if (operatorChars.indexOf(this.source.charCodeAt(a)) === -1) {
-                                let [s, e] = this.getWordFromIndex(a);
-                                const subStr = this.source.substring(s, e);
-                                if (operatorWords.indexOf(subStr) !== -1) {
-                                    // str += subStr.reverse();
-                                    strArr.push(...subStr.split('').reverse());
-                                    a = s - 1;
-                                } else {
-                                    break;
-                                }
-                            }
-                            // str += this.source.charAt(a);
-                            strArr.push(this.source.charAt(a));
-                            [a, cci] = this.skipNonCode(a - 1, -1, cci);
-                        }
-                        // console.log(str);
-                        if (doEvalCheck(strArr.reverse().join(''))) {
-                            saveScope(-4, StaticAnalyzer.scopeTypes.singleStatement);
-                        }
-
-                        // [b, _] = this.skipNonCode(b, 1);
-                        // if (expressionSplitters.indexOf(this.source.charCodeAt(a)) === -1 &&
-                        //     expressionSplitters.indexOf(this.source.charCodeAt(b)) === -1) {
-                        //     saveScope(-2, StaticAnalyzer.scopeTypes.singleStatement);
-                        // }
+                        checkIfExpressionIsOver(-4);
 
                     }
                 }
