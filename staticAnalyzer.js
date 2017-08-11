@@ -222,7 +222,7 @@ class StaticAnalyzer {
         const skipNonCode = (j) => {
             let resI = commentsAndStrings.length - 1;
             while (j >= 0 && (this.source.charCodeAt(j) <= 32 || /* || this.source.charCodeAt(j) === 10 || /!*this.source.charCodeAt(j) === 9 ||*!/*/
-            (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j))) {
+                (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j))) {
                 j--;
                 if (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j) {
                     j = commentsAndStrings[resI][0] - 1;
@@ -952,8 +952,17 @@ class StaticAnalyzer {
 
     // todo: add a direction to this
     skipNonCode(j, direction = 1, curCommentIndex = binarySearch(this._commentsAndStrings, j, true), skipComments = true, skipWhitespace = true, skipNewLine = true) {
+        const oldJ = j;
         if (isNaN(curCommentIndex))
             curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
+
+        // todo: @sergi het es pah@ qnnarkel mihat
+        if (curCommentIndex === true || curCommentIndex === false) {
+            skipNewLine = skipWhitespace;
+            skipWhitespace = skipComments;
+            skipComments = curCommentIndex;
+            curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
+        }
 
         while (j < this.source.length && j >= 0) {
             if (skipComments && curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
@@ -968,6 +977,7 @@ class StaticAnalyzer {
                 continue;
             }
 
+            // todo: remove it when all refactoring will done
             // if (this.source.charCodeAt(j) <= 32) {
             //     j += direction;
             //     continue;
@@ -981,12 +991,18 @@ class StaticAnalyzer {
             break;
         }
 
-        return [j, curCommentIndex];
+        return [j, curCommentIndex, oldJ !== j];
     };
 
-    skipBrackets(j, curCommentIndex = binarySearch(this._commentsAndStrings, j, true)) {
+    skipBrackets(j, curCommentIndex = binarySearch(this._commentsAndStrings, j, true), forward = true, backward = true) {
         let oldJ = j;
         const bracket = this.source.charCodeAt(j);
+
+        if (curCommentIndex === true || curCommentIndex === false) {
+            backward = forward;
+            forward = curCommentIndex;
+            curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
+        }
 
         const isOpening = ['{'.charCodeAt(0), '('.charCodeAt(0), '['.charCodeAt(0)].indexOf(bracket) !== -1;
         const isClosing = ['}'.charCodeAt(0), ')'.charCodeAt(0), ']'.charCodeAt(0)].indexOf(bracket) !== -1;
@@ -994,12 +1010,15 @@ class StaticAnalyzer {
         if (!isOpening && !isClosing)
             return [oldJ, curCommentIndex];
 
+        if (isOpening && !forward || isClosing && !backward)
+            return [oldJ, curCommentIndex];
+
         if (bracket === '{'.charCodeAt(0)) {
             curCommentIndex = NaN;
-            return [j, this._es6Scopes[1][this._es6Scopes[0].indexOf(j)]];
+            return [this._es6Scopes[1][this._es6Scopes[0].indexOf(j)], curCommentIndex];
         } else if (bracket === '}'.charCodeAt(0)) {
             curCommentIndex = NaN;
-            return [j, this._es6Scopes[0][this._es6Scopes[1].indexOf(j)]];
+            return [this._es6Scopes[0][this._es6Scopes[1].indexOf(j)] - 1, curCommentIndex];
         }
 
         let reverseBracket;
@@ -1021,14 +1040,13 @@ class StaticAnalyzer {
         while (j < this.source.length && j >= 0) {
             [j, curCommentIndex] = this.skipNonCode(j, direction);
 
-            if (bracket === this.source.charCodeAt(j))
+            if (bracket === this.source.charCodeAt(j)) {
                 stack++;
-
-            if (reverseBracket === this.source.charCodeAt(j)) {
+            } else if (reverseBracket === this.source.charCodeAt(j)) {
                 stack--;
 
                 if (stack === 0)
-                    return [j, curCommentIndex];
+                    return [isOpening ? j : j - 1, curCommentIndex];
             }
 
             j += direction;
@@ -1036,6 +1054,28 @@ class StaticAnalyzer {
 
         return [oldJ, curCommentIndex];
     };
+
+    skipNonCodeAndScopes(j, direction = 1, curCommentIndex = binarySearch(this._commentsAndStrings, j, true), skipComments = true, skipWhitespace = true, skipNewLine = true) {
+        const oldJ = j;
+        const skipBracketsForward = direction === 1;
+
+        // todo: @sergi het es pah@ qnnarkel mihat
+        if (curCommentIndex === true || curCommentIndex === false) {
+            skipNewLine = skipWhitespace;
+            skipWhitespace = skipComments;
+            skipComments = curCommentIndex;
+            curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
+        }
+
+        let currJ;
+        do {
+            currJ = j;
+            [j, curCommentIndex] = this.skipNonCode(j, direction, curCommentIndex, skipComments, skipWhitespace, skipNewLine);
+            [j, curCommentIndex] = this.skipBrackets(j, curCommentIndex, skipBracketsForward, !skipBracketsForward);
+        } while (currJ !== j && j >= 0 && j < this.source.length);
+
+        return [j, curCommentIndex, j !== oldJ];
+    }
 
     getWordFromIndex(i) {
         if (jsDelimiterChars.indexOf(this.source.charCodeAt(i)) !== -1)
@@ -1747,33 +1787,40 @@ class StaticAnalyzer {
         const declarationTypes = ['var', 'let', 'const', 'class', 'function', 'function*'];
         const isMultivariable = [true, true, true, false, false, false];
 
-        const isDeclaration = (index, scope = this.findScope(index)) => {
+        const getDeclarationType = (index, scope = this.findScope(index)) => {
+            // todo: fix it when @serg will provide data
+            // if(insideFunctionParams) {
+            //     return isfunctionDefinition
+            // }
+
             const scopeStart = scope === -1 ? 0 : this._es6Scopes[0][scope];
             // we need to check for commas not just keywords for multiple definition variables
             [index, _] = this.skipNonCode(index - 1, -1);
 
+            const tmp = [];
             // multivariable case
             if (this.source.charCodeAt(index) === ','.charCodeAt(0)) {
-                // todo: fix it when @serg will provide data
-                // if(insideFunctionParams) {
-                //     return isfunctionDefinition
-                // }
-
                 // todo: go back until var/let/const...
                 // todo: gor has this code somewhere, find it
                 // todo: put it here :D
 
-                let newIndex = index;
                 let nonCodeSkipped = false;
+                let beforeNewLine = false;
                 while (index > scopeStart) {
+                    [index, _, nonCodeSkipped] = this.skipNonCodeAndScopes(index, -1, true, true, false);
+                    tmp.push(this.source.charAt(index));
+
+                    beforeNewLine = this.source.charCodeAt(index) === 10; // newline symbol
+
                     index--;
-                    [newIndex, _] = this.skipNonCode(index, -1);
-                    nonCodeSkipped = index !== newIndex;
-                    index = newIndex;
-                    [index, _] = this.skipBrackets(index);
-                    console.log('asd', index, this.source.charAt(index), nonCodeSkipped);
                 }
+
+                console.log(tmp.reverse().join(''));
+
+                if (index === scopeStart)
+                    return null;
             }
+
             let i = 0;
             let curLength = 0;
             const len = declarationTypes.length;
@@ -1784,11 +1831,11 @@ class StaticAnalyzer {
                     cur = this.source.substr(index - curLength + 1, curLength);
                 }
                 if (cur === declarationTypes[i]) {
-                    return true;
+                    return cur;
                 }
                 i++;
             }
-            return false;
+            return null;
         };
 
         // we really need a stack only to be able to link variables from nested scopes to each other
@@ -1801,23 +1848,20 @@ class StaticAnalyzer {
         const references = [];
         const scopes = [];
         const isDec = [];
+        const decType = [];
         const declarationScopes = new Set();
 
-        let type = null;
         while ((match = rx.exec(this.source))) {
             const index = match[0].indexOf(variable) + match.index;
             if (!this.isCommentOrString(index)) {
                 const scope = this.findScope(index);
-                const isDecReference = isDeclaration(index, scope);
+                const declaraionType = getDeclarationType(index, scope);
                 scopes.push(scope);
-                isDec.push(isDecReference);
+                isDec.push(declaraionType !== null);
+                decType.push(declaraionType);
 
-                if (isDecReference) {
+                if (declaraionType) {
                     declarationScopes.add(scope);
-                    if (scope === -1) {
-                        // todo: get type of global declaration
-                        type = 1;
-                    }
                 }
 
                 references.push(index);
@@ -1825,7 +1869,7 @@ class StaticAnalyzer {
         }
 
         // console.log(declarationScopes);
-        console.table({references, scopes, isDec});
+        console.table({references, scopes, isDec, decType});
 
         for (let i = 0; i < references.length; i++) {
             // todo: get all updated references
