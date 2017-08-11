@@ -1,4 +1,5 @@
 let _ = undefined;
+const cOBJ = {};
 
 const find = (source, needle, method = 'indexOf') => {
     const res = [];
@@ -639,7 +640,8 @@ class StaticAnalyzer {
         };
 
         let state = s.anything;
-        let curCommentIndex = 0;
+        let curCommentIndex = {cci: null};
+        // let curCommentIndex = 0;
         const oneLinerSplitters = ['+', '-', '/', '*', '%', '[', ']', '}', '(', '.'].map(x => x.charCodeAt(0));
         const es5Functions = ['function', 'function*'];
 
@@ -661,7 +663,8 @@ class StaticAnalyzer {
             let scopeEnd = i;
             let j = i;
             // cur comment index!!!!!
-            let cci = null;
+            let cci = 0;
+            const skipParams = {cci: null};
             let c = null;
             // todo: make a debug flag for these things
             this._scopeString += String.fromCharCode(bracket);
@@ -669,12 +672,12 @@ class StaticAnalyzer {
             switch (scopeType) {
                 case StaticAnalyzer.scopeTypes.arrowFunction:
                     // debugger;
-                    [i, _] = this.skipNonCode(i + 2);
+                    i = this.skipNonCodeNEW(i + 2, cOBJ);
                     scopeStart = i;
                     i++;
+                    curCommentIndex.cci = null;
                     c = j - 1;
-                    c--;
-                    [c, cci] = this.skipNonCode(c, -1); // add curCommentIndex
+                    c = this.skipNonCodeNEW(--c, skipParams, -1); // add curCommentIndex
                     let closingRoundBracket = c;
                     let openingRoundBracket = null;
 
@@ -699,6 +702,7 @@ class StaticAnalyzer {
                     if (this.source.charCodeAt(i - 1) !== '{'.charCodeAt(0)) {
                         // revert back one character so things like ({}) will work
                         i -= 2;
+                        curCommentIndex.cci = null;
                         scopeType = scopeType | StaticAnalyzer.scopeTypes.expression;
                         bracket = -1; // no bracket at all
                     }
@@ -717,9 +721,9 @@ class StaticAnalyzer {
                 case StaticAnalyzer.scopeTypes.for:
                     isOpening = true;
                     scopeStart = i;
-                    [i, cci] = this.skipNonCode(i + 3);
-                    [i, _] = this.skipBrackets(i, cci);
-                    [i, cci] = this.skipNonCode(++i);
+                    i = this.skipNonCodeNEW(i + 3, skipParams);
+                    [i, _] = this.skipBrackets(i, skipParams.cci);
+                    i = this.skipNonCodeNEW(++i, skipParams);
 
                     i++;
 
@@ -729,7 +733,7 @@ class StaticAnalyzer {
                         scopeType = scopeType | StaticAnalyzer.scopeTypes.singleStatement;
                         bracket = -3; // no bracket at all, but a statement instead of an expression
                     }
-
+                    curCommentIndex.cci = null;
                     this._scopeData.push([scopeType, []]);
                     break;
             }
@@ -738,7 +742,8 @@ class StaticAnalyzer {
             if (bracket === '{'.charCodeAt(0)) {
                 // bracketStack.push(bracket);
                 isOpening = true;
-                [j, _] = this.skipNonCode(i - 1, -1);
+                // [j, _] = this.skipNonCode(i - 1, -1);
+                j = this.skipNonCodeNEW(j, cOBJ, -1);
 
                 // checking if the scope is a function
                 if (this.source.charCodeAt(j) === ')'.charCodeAt(0)) {
@@ -751,7 +756,8 @@ class StaticAnalyzer {
 
                     while (tmpI++ < 2) {
                         j--;
-                        [j, _] = this.skipNonCode(j, -1); // add curCommentIndex
+                        // [j, _] = this.skipNonCode(j, -1); // add curCommentIndex
+                        j = this.skipNonCodeNEW(j, cOBJ, -1);
                         const nextWord = this.getWordFromIndex(j);
                         const cur = this.source.substring(nextWord[0], nextWord[1]);
                         j = nextWord[0];
@@ -928,8 +934,11 @@ class StaticAnalyzer {
 
 
             }
+            // console.log(i);
+            i = this.skipNonCodeNEW(++i, curCommentIndex, 1, true, true, false);
+            // i = this.skipNonCodeNEW(++i, cOBJ, 1, true, true, false);
 
-            [i, curCommentIndex] = this.skipNonCode(++i, 1, curCommentIndex, true, true, false);
+            // [i, curCommentIndex] = this.skipNonCode(++i, 1, curCommentIndex, true, true, false);
             // i++;
 
         }
@@ -994,6 +1003,60 @@ class StaticAnalyzer {
         }
 
         return [j, curCommentIndex, oldJ !== j];
+    };
+
+    skipNonCodeNEW(j, params, direction = 1, skipComments = true, skipWhitespace = true, skipNewLine = true) {
+        const oldJ = j;
+        let curCommentIndex = params.cci;// !== undefined ? params.cci : binarySearch(this._commentsAndStrings, j, true);
+        if (curCommentIndex !== 0 && !curCommentIndex) {
+            curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
+        }
+        // if (isNaN(curCommentIndex))
+        //     curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
+
+        // // todo: @sergi het es pah@ qnnarkel mihat
+        // if (curCommentIndex === true || curCommentIndex === false) {
+        //     skipNewLine = skipWhitespace;
+        //     skipWhitespace = skipComments;
+        //     skipComments = curCommentIndex;
+        //     params.cci = binarySearch(this._commentsAndStrings, j, true);
+        // }
+
+        while (j < this.source.length && j >= 0) {
+            if (skipComments && curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
+                this._commentsAndStrings[curCommentIndex][0] <= j && j <= this._commentsAndStrings[curCommentIndex][1]) {
+
+                j = this._commentsAndStrings[curCommentIndex][direction === 1 ? 1 : 0];
+                if (direction === -1) {
+                    j--;
+                }
+
+                curCommentIndex += direction;
+                continue;
+            }
+
+            // todo: remove it when all refactoring will done
+            // if (this.source.charCodeAt(j) <= 32) {
+            //     j += direction;
+            //     continue;
+            // }
+
+            if ((skipNewLine && this.source.charCodeAt(j) === 10) || (skipWhitespace && this.source.charCodeAt(j) <= 32 && this.source.charCodeAt(j) !== 10)) {
+                j += direction;
+                continue;
+            }
+
+            break;
+        }
+        if (params.hasOwnProperty('cci')) {
+            params.cci = curCommentIndex;
+        }
+        if ('skipped' in params) {
+            params.skipped = oldJ === j;
+        }
+
+        // return [j, curCommentIndex, oldJ !== j];
+        return j;
     };
 
     skipBrackets(j, curCommentIndex = binarySearch(this._commentsAndStrings, j, true), forward = true, backward = true) {
