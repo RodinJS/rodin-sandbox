@@ -104,7 +104,7 @@ const reduce = (source, needles) => {
     return [reducedSource, reduceMap];
 };
 
-const jsDelimiterChars = ['=', '+', '-', '/', '*', '%', '(', ')', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?', ' '];
+const jsDelimiterChars = ['=', '+', '-', '/', '*', '%', '(', ')', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?', ' '].map(x => x.charCodeAt(0));
 
 
 class StaticAnalyzer {
@@ -282,7 +282,7 @@ class StaticAnalyzer {
 
                 const wordEnd = j + 1;
 
-                while (j >= 0 && jsDelimiterChars.indexOf(this.source.charAt(j)) === -1) {
+                while (j >= 0 && jsDelimiterChars.indexOf(this.source.charCodeAt(j)) === -1) {
                     j--;
                 }
                 const wordStart = j + 1;
@@ -841,7 +841,12 @@ class StaticAnalyzer {
                 saveScope(cur);
             } else if (cur === '='.charCodeAt(0) && this.source.charCodeAt(i + 1) === '>'.charCodeAt(0)) {
                 saveScope(cur, StaticAnalyzer.scopeTypes.arrowFunction);
-            } else if (cur === 'f'.charCodeAt(0) && this.source.charCodeAt(i + 1) === 'o'.charCodeAt(0) && this.source.charCodeAt(i + 2) === 'r'.charCodeAt(0)) {
+            } else if (jsDelimiterChars.indexOf(this.source.charCodeAt(i - 1)) !== -1 &&
+                jsDelimiterChars.indexOf(this.source.charCodeAt(i + 3)) !== -1 &&
+                // cur === 'f'.charCodeAt(0) &&
+                // this.source.charCodeAt(i + 1) === 'o'.charCodeAt(0) &&
+                // this.source.charCodeAt(i + 2) === 'r'.charCodeAt(0)
+                this.source.substr(i, 3) === 'for') {
                 saveScope(cur, StaticAnalyzer.scopeTypes.for);
             } else {
                 if (cur === '('.charCodeAt(0) || cur === '['.charCodeAt(0)) {
@@ -905,7 +910,7 @@ class StaticAnalyzer {
                             str = this.source.charAt(a) + str;
                             [a, cci] = this.skipNonCode(a - 1, -1, cci);
                         }
-                        console.log(str);
+                        // console.log(str);
                         if (doEvalCheck(str)) {
                             saveScope(-4, StaticAnalyzer.scopeTypes.singleStatement);
                         }
@@ -1033,7 +1038,7 @@ class StaticAnalyzer {
     };
 
     getWordFromIndex(i) {
-        if (jsDelimiterChars.indexOf(this.source.charAt(i)) !== -1)
+        if (jsDelimiterChars.indexOf(this.source.charCodeAt(i)) !== -1)
             return [NaN, NaN];
 
         if (this.isCommentOrString(i))
@@ -1042,16 +1047,16 @@ class StaticAnalyzer {
         let start = i;
         let end = i;
 
-        let currChar = this.source.charAt(end);
+        let currChar = this.source.charCodeAt(end);
         while (jsDelimiterChars.indexOf(currChar) === -1 && end < this.source.length) {
             end++;
-            currChar = this.source.charAt(end);
+            currChar = this.source.charCodeAt(end);
         }
 
-        currChar = this.source.charAt(start);
+        currChar = this.source.charCodeAt(start);
         while (jsDelimiterChars.indexOf(currChar) === -1 && start >= 0) {
             start--;
-            currChar = this.source.charAt(start);
+            currChar = this.source.charCodeAt(start);
         }
 
         return [start + 1, end];
@@ -1229,28 +1234,28 @@ class StaticAnalyzer {
                             break;
                         }
 
-                        if ('let' === this.source.substr(i, 3) && jsDelimiterChars.indexOf(this.source.charAt(i + 3)) !== -1) {
+                        if ('let' === this.source.substr(i, 3) && jsDelimiterChars.indexOf(this.source.charCodeAt(i + 3)) !== -1) {
                             memory.exportType = 'let';
                             i += 2;
                             state = states.lcv.anything;
                             break;
                         }
 
-                        if ('var' === this.source.substr(i, 3) && jsDelimiterChars.indexOf(this.source.charAt(i + 3)) !== -1) {
+                        if ('var' === this.source.substr(i, 3) && jsDelimiterChars.indexOf(this.source.charCodeAt(i + 3)) !== -1) {
                             memory.exportType = 'var';
                             i += 2;
                             state = states.lcv.anything;
                             break;
                         }
 
-                        if ('const' === this.source.substr(i, 5) && jsDelimiterChars.indexOf(this.source.charAt(i + 5)) !== -1) {
+                        if ('const' === this.source.substr(i, 5) && jsDelimiterChars.indexOf(this.source.charCodeAt(i + 5)) !== -1) {
                             memory.exportType = 'const';
                             i += 4;
                             state = states.lcv.anything;
                             break;
                         }
 
-                        if ('function' === this.source.substr(i, 8) && jsDelimiterChars.indexOf(this.source.charAt(i + 8)) !== -1) {
+                        if ('function' === this.source.substr(i, 8) && jsDelimiterChars.indexOf(this.source.charCodeAt(i + 8)) !== -1) {
                             memory.exportType = 'function';
                             i += 7;
                             let j;
@@ -1264,14 +1269,14 @@ class StaticAnalyzer {
                             break;
                         }
 
-                        if ('class' === this.source.substr(i, 5) && jsDelimiterChars.indexOf(this.source.charAt(i + 5)) !== -1) {
+                        if ('class' === this.source.substr(i, 5) && jsDelimiterChars.indexOf(this.source.charCodeAt(i + 5)) !== -1) {
                             memory.exportType = 'class';
                             i += 4;
                             state = states.fc.anything;
                             break;
                         }
 
-                        if ('default' === this.source.substr(i, 7) && jsDelimiterChars.indexOf(this.source.charAt(i + 7)) !== -1) {
+                        if ('default' === this.source.substr(i, 7) && jsDelimiterChars.indexOf(this.source.charCodeAt(i + 7)) !== -1) {
                             memory.exportType = 'default';
                             state = states.end;
                             break;
@@ -1634,7 +1639,7 @@ class StaticAnalyzer {
                         break;
 
                     case states.default.var:
-                        if (jsDelimiterChars.indexOf(this.source.charAt(i)) !== -1) {
+                        if (jsDelimiterChars.indexOf(this.source.charCodeAt(i)) !== -1) {
                             saveVar();
                             state = states.start;
                             break;
