@@ -96,6 +96,8 @@
 
     }
 
+    function(){function n(){for(;;)a(b(c))}}
+
     var f_2 = function () {
 
     }

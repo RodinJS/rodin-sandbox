@@ -651,6 +651,19 @@ class StaticAnalyzer {
             anything: 0
         };
 
+        const bracketMap = {
+            ['('.charCodeAt(0)]: ')'.charCodeAt(0),
+            ['['.charCodeAt(0)]: ']'.charCodeAt(0),
+            ['{'.charCodeAt(0)]: '}'.charCodeAt(0),
+            [')'.charCodeAt(0)]: '('.charCodeAt(0),
+            [']'.charCodeAt(0)]: '['.charCodeAt(0),
+            ['}'.charCodeAt(0)]: '{'.charCodeAt(0),
+            [-1]: -2,
+            [-2]: -1,
+            [-3]: -4,
+            [-4]: -3
+        };
+
         let state = s.anything;
         let curCommentIndex = {cci: null};
         // let curCommentIndex = 0;
@@ -829,7 +842,9 @@ class StaticAnalyzer {
                 // todo: this definitely needs major refactoring
                 scopeStackSize--;
                 while (true) {
-                    const last = bracketStack.pop();
+                    // const last = bracketStack.pop();
+                    const last = bracketStack[bracketStack.length - 1];
+                    popBracketStack(bracketMap[bracket]);
                     if (!last || !bracketStack.length || last > 0 || bracketStack[bracketStack.length - 1] > 0)
                         break;
                     saveScope(bracketStack[bracketStack.length - 1] - 1, StaticAnalyzer.scopeTypes.expression);
@@ -842,16 +857,7 @@ class StaticAnalyzer {
             //es6Scopes.push([i, bracket]);
         };
 
-        /**
-         * doesnt always work
-         * things like
-         * if (true) 0
-         * || 1
-         * are valid too, so need to check both sides
-         * @param expr
-         * @param direction
-         * @return {boolean}
-         */
+
         const doEvalCheck = (expr, direction = -1) => {
             try {
                 let a = 0, b = 0;
