@@ -119,12 +119,12 @@ const initTest = () => {
                     `<a href="${data.results[i].latest}">${data.results[i].name}</a>`,
                     res['length'],
                     res['brokenBracketCount'],
-                    res['commentAnalysis'],
-                    Math.round(res['length'] / res['commentAnalysis']),
+                    res['commentAnalysis'] + res['scopeAnalysis'],
+                    Math.round(res['length'] / (res['commentAnalysis'] + res['scopeAnalysis'])),
                     res['evalError'] || 'ok');
 
                 if (res['commentAnalysis'] !== 0) {
-                    charMsSum += res['length'] / res['commentAnalysis'];
+                    charMsSum += res['length'] / (res['commentAnalysis'] + res['scopeAnalysis']);
                 }
 
                 if (!res['evalError']) {
