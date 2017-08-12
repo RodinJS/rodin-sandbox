@@ -12,21 +12,29 @@ const runTest = (url, callback) => {
         t = Date.now();
         a.analyzeCommentsAndStrings();
         res['commentAnalysis'] = Date.now() - t;
-        //
-        // t = Date.now();
-        // a.analyzeScopes();
-        // res['scopeAnalysis'] = Date.now() - t;
 
-        const str = a._scopeString;
+        t = Date.now();
+        a.analyzeScopes();
+        res['scopeAnalysis'] = Date.now() - t;
 
-        res['openingBracketCount'] = find(str, '{').length;
-        res['closingBracketCount'] = find(str, '}').length;
+        // const str = a._scopeString;
 
-        try {
-            eval(str);
-        } catch (err) {
-            res['evalError'] = err;
+        res['brokenBracketCount'] = a._es6Scopes[1].filter(x => isNaN(x)).length;
+        if (res['brokenBracketCount']) {
+            res['evalError'] = 'err';
+            try {
+                eval(source);
+            } catch (e) {
+                delete res['evalError'];
+            }
         }
+        // res['closingBracketCount'] = find(str, '}').length;
+
+        // try {
+        //     eval(str);
+        // } catch (err) {
+        //     res['evalError'] = err;
+        // }
 
         callback(res);
 
@@ -109,8 +117,8 @@ const initTest = () => {
 
                 addRow(
                     `<a href="${data.results[i].latest}">${data.results[i].name}</a>`,
-                    res['length'], res['openingBracketCount'],
-                    res['closingBracketCount'],
+                    res['length'],
+                    res['brokenBracketCount'],
                     res['commentAnalysis'],
                     Math.round(res['length'] / res['commentAnalysis']),
                     res['evalError'] || 'ok');
