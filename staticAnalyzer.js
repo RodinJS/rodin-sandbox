@@ -842,6 +842,16 @@ class StaticAnalyzer {
             //es6Scopes.push([i, bracket]);
         };
 
+        /**
+         * doesnt always work
+         * things like
+         * if (true) 0
+         * || 1
+         * are valid too, so need to check both sides
+         * @param expr
+         * @param direction
+         * @return {boolean}
+         */
         const doEvalCheck = (expr, direction = -1) => {
             try {
                 let a = 0, b = 0;
@@ -885,8 +895,32 @@ class StaticAnalyzer {
                 a = this.skipNonCodeNEW(a - 1, skipParams, -1);
             }
             // console.log(str);
-            if (doEvalCheck(strArr.reverse().join(''))) {
-                saveScope(bracketType, StaticAnalyzer.scopeTypes.singleStatement);
+            let operatorStr = strArr.reverse().join('');
+            strArr = [];
+            // debugger;
+            if (doEvalCheck(operatorStr)) {
+                skipParams.cci = null;
+                a = this.skipNonCodeNEW(i, skipParams);
+                while (true) {
+                    if (operatorChars.indexOf(this.source.charCodeAt(a)) === -1) {
+                        let [s, e] = this.getWordFromIndex(a);
+                        const subStr = this.source.substring(s, e);
+                        if (operatorWords.indexOf(subStr) !== -1) {
+                            strArr.push(subStr);
+                            a = e;
+                        } else {
+                            break;
+                        }
+                    }
+                    // str += this.source.charAt(a);
+                    strArr.push(this.source.charAt(a));
+                    a = this.skipNonCodeNEW(a + 1, skipParams);
+                }
+
+                operatorStr += strArr.join('');
+                if (!doEvalCheck(operatorStr, 0)) {
+                    saveScope(bracketType, StaticAnalyzer.scopeTypes.singleStatement);
+                }
             }
         };
 

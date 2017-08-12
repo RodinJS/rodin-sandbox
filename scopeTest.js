@@ -1,4 +1,7 @@
 {
+    for (;;) ((a)=>typeof a+'stuff')(i), i++
+
+    for (let i=0;i<10;i++) console.log(i),console.log(((a)=>typeof a+'stuff')(i)), i++
 
     for (let i = 0; i < 10; i++) console.log(i), i++, i--
     for (let i = 0; i < 10; i++) console.log(i), i++, typeof
@@ -21,6 +24,20 @@
     for (let i = 0; i < 10; i++) console.log(i), i++, i--, i++;
     for (let i = 0; i < 10; i++) console.log(i), console.log(i)
     for (let i = 0; i < 10; i++) console.log(i), console.log(i);
+
+    for (let i = 0; i < 10; i++) console.log(i), console.log(i), true ||
+    false
+    for (let i = 0; i < 10; i++) console.log(i), console.log(i), true
+    ||
+    false
+
+    for (let i = 0; i < 10; i++) console.log(i), console.log(i), true
+    ||    false
+    && true
+    ^ typeof
+        12
+
+    for (let i=0;i<10;i++) console.log(i),console.log(((a)=>typeof a+'stuff')(i)), i++
 
     const d = () => ({a: 1})
 
@@ -55,9 +72,9 @@
     const e4 = (a, b, c, d) => (a + b + c - d + 1 * Math.log(c))
     const e5 = (a, b, c, d) => (a + b + c - d + 1 * Math.log(c));
     const e6 = (a, b, c, d) => // a comment
-    1 + 2 + c
+        1 + 2 + c
     const e7 = (a, b, c, d) => // a comment
-    1 + 2 + c;
+        1 + 2 + c;
     const e8 = (a, b, c, d) => (() => {
         return 10
     })() + a;
