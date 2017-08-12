@@ -699,6 +699,7 @@ class StaticAnalyzer {
                     // debugger;
                     i = this.skipNonCodeNEW(i + 2, cOBJ);
                     scopeStart = i;
+                    // check this
                     i++;
                     curCommentIndex.cci = null;
                     c = j - 1;
@@ -751,10 +752,11 @@ class StaticAnalyzer {
                     [i, _] = this.skipBrackets(i, skipParams.cci);
                     i = this.skipNonCodeNEW(++i, skipParams);
 
-                    i++;
+                    // i++;
 
-                    if (this.source.charCodeAt(i - 1) !== '{'.charCodeAt(0)) {
+                    if (this.source.charCodeAt(i) !== '{'.charCodeAt(0)) {
                         // revert back one character so things like ({}) will work
+                        // not sure if -=2 or -=1
                         i -= 2;
                         scopeType = scopeType | StaticAnalyzer.scopeTypes.singleStatement;
                         bracket = -3; // no bracket at all, but a statement instead of an expression

@@ -15,6 +15,8 @@
 
     }
 
+    for(;;){if(a){for(;;){}--a[i];a[j]}a[j]-=a[j]}
+
     for (let i = 0; i < 10; i++) console.log(i)
     for (let i = 0; i < 10; i++) console.log(i), true, false
     for (let i = 0; i < 10; i++) console.log(i), true, false;
