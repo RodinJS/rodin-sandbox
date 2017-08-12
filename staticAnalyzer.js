@@ -700,7 +700,7 @@ class StaticAnalyzer {
                     i = this.skipNonCodeNEW(i + 2, cOBJ);
                     scopeStart = i;
                     // check this
-                    i++;
+                    // i++;
                     curCommentIndex.cci = null;
                     c = j - 1;
                     c = this.skipNonCodeNEW(--c, skipParams, -1); // add curCommentIndex
@@ -725,7 +725,7 @@ class StaticAnalyzer {
                     //     scopeType = scopeType | StaticAnalyzer.scopeTypes.expression;
                     //     bracket = -3; // round bracket
                     // } else
-                    if (this.source.charCodeAt(i - 1) !== '{'.charCodeAt(0)) {
+                    if (this.source.charCodeAt(i) !== '{'.charCodeAt(0)) {
                         // revert back one character so things like ({}) will work
                         i -= 2;
                         curCommentIndex.cci = null;

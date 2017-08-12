@@ -89,10 +89,17 @@
     const n_e1 = a => {
         return a + b + c - d + 1 * Math.log(c)
     };
-    const n_e2 = a => a + b + c - d + 1 * Math.log(c)
+    const n_e2 = a =>a + b + c - d + 1 * Math.log(c)
     const n_e3 = a => a + b + c - d + 1 * Math.log(c);
     const n_e4 = a => (a + b + c - d + 1 * Math.log(c))
     const n_e5 = a => (a + b + c - d + 1 * Math.log(c));
+
+    function(a,b,c){"use strict";a.b=function(a){return{a:(a)=>{},b:a=>{a.b.c.d(e)},c:function(){},d:()=>a.b.c}}}
+    function a(){return{a:(a)=>{},b:a=>{a.b.c.d(e)},c:function(){},d:()=>a.b.c}}
+
+    const a = ()=>{}
+
+
 
     function f_1() {
 
