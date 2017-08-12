@@ -669,7 +669,7 @@ class StaticAnalyzer {
 
         //todo: one line arrow functions, for, if, while, do
         const saveScope = (bracket, scopeType = StaticAnalyzer.scopeTypes.es6) => {
-
+            let scopeData = [];
             let isOpening = false;
             let scopeStart = i;
             let scopeEnd = i;
@@ -719,8 +719,8 @@ class StaticAnalyzer {
                         bracket = -1; // no bracket at all
                     }
 
-                    this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
-
+                    // this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
+                    scopeData = [scopeType, [openingRoundBracket, closingRoundBracket]];
 
                     isOpening = true;
                     break;
@@ -747,7 +747,8 @@ class StaticAnalyzer {
                         bracket = -3; // no bracket at all, but a statement instead of an expression
                     }
                     curCommentIndex.cci = null;
-                    this._scopeData.push([scopeType, []]);
+                    // this._scopeData.push([scopeType, []]);
+                    scopeData = [scopeType, []];
                     break;
             }
 
@@ -756,7 +757,7 @@ class StaticAnalyzer {
                 // bracketStack.push(bracket);
                 isOpening = true;
                 // [j, _] = this.skipNonCode(i - 1, -1);
-                j = this.skipNonCodeNEW(j, cOBJ, -1);
+                j = this.skipNonCodeNEW(--j, cOBJ, -1);
 
                 // checking if the scope is a function
                 if (this.source.charCodeAt(j) === ')'.charCodeAt(0)) {
@@ -777,7 +778,8 @@ class StaticAnalyzer {
                         // const fcn = function(a,b,c){...}
                         if (es5Functions.indexOf(cur) !== -1) {
                             scopeType = StaticAnalyzer.scopeTypes.function;
-                            this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
+                            // this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
+                            scopeData = [scopeType, [openingRoundBracket, closingRoundBracket]];
                             // scopeStart = j;
                         }
                     }
@@ -817,6 +819,7 @@ class StaticAnalyzer {
                     scopeStack[scopeStackSize] = es6Scopes[0].length - 1;
                 }
                 scopeStackSize++;
+                this._scopeData.push(scopeData);
             } else {
                 // change the value we put as NaN earlier
                 es6Scopes[1][scopeStack[scopeStackSize - 1]] = scopeEnd;
@@ -2108,6 +2111,16 @@ class StaticAnalyzer {
         };
 
         console.table(reshape())
+    }
+
+    printBrokenScopes() {
+        const res = [];
+        for (let i = 0; i < this._es6Scopes[0].length; i++)
+            if (isNaN(this._es6Scopes[1][i]))
+                res.push(this._es6Scopes[0][i]);
+        for (let i in res) {
+            console.log(this.source.substr(res[i], 100));
+        }
     }
 
 }
