@@ -114,7 +114,7 @@ class StaticAnalyzer {
         this._commentsAndStringsAnalyzed = false;
         this._lca = null;
         this._es6Scopes = null;
-        this._scopeData = [[], []];
+        this._scopeData = [];
         this._es5Scopes = null;
 
         this._es6ScopeGraph = null;
@@ -680,9 +680,58 @@ class StaticAnalyzer {
         const operatorChars = ['+', '-', '/', '*', '%', '>', '<', '&', '|', '^', '=', '?', ':', '~'].map(x => x.charCodeAt(0));
         const operatorWords = ['instanceof', 'delete', 'typeof', 'void', 'in'];
 
+        /**
+         * checks if the there is a function or class at the given position
+         * if type is 0 checks only for function,
+         * if type is 1 checks only for class
+         * @param j
+         * @param type
+         * @return {*}
+         */
+        const checkIfClassOrFunction = (j, type = 0) => {
+            let scopeData = [StaticAnalyzer.scopeTypes.es6];
+            let closingRoundBracket = null, openingRoundBracket = null;
+
+            // only need to do this for functions, classes dont have ()
+            if (type === 0) {
+                closingRoundBracket = j + 1;
+                [j, _] = this.skipBrackets(j);
+                openingRoundBracket = j + 1;
+
+                if (this._scopeData[scopeStack[scopeStackSize - 1]][0] === StaticAnalyzer.scopeTypes.class) {
+                    let scopeType = StaticAnalyzer.scopeTypes.function;
+                    return [scopeType, [openingRoundBracket, closingRoundBracket]];
+                }
+            }
+
+
+            let tmpI = 0;
+
+            while (tmpI++ < 2) {
+                j--;
+                // [j, _] = this.skipNonCode(j, -1); // add curCommentIndex
+                j = this.skipNonCodeNEW(j, cOBJ, -1);
+                const nextWord = this.getWordFromIndex(j);
+                const cur = this.source.substring(nextWord[0], nextWord[1]);
+                j = nextWord[0];
+                // const fcn = function(a,b,c){...}
+                if (type === 0 && es5Functions.indexOf(cur) !== -1) {
+                    let scopeType = StaticAnalyzer.scopeTypes.function;
+                    scopeData = [scopeType, [openingRoundBracket, closingRoundBracket]];
+                    break;
+                } else if (type === 1 && cur === 'class') {
+                    let scopeType = StaticAnalyzer.scopeTypes.class;
+                    scopeData = [scopeType];
+                    break;
+                }
+            }
+            return scopeData;
+        };
+
         //todo: one line arrow functions, for, if, while, do
         const saveScope = (bracket, scopeType = StaticAnalyzer.scopeTypes.es6) => {
-            let scopeData = [];
+            let scopeData = [StaticAnalyzer.scopeTypes.es6];
+
             let isOpening = false;
             let scopeStart = i;
             let scopeEnd = i;
@@ -704,7 +753,7 @@ class StaticAnalyzer {
                     curCommentIndex.cci = null;
                     c = j - 1;
                     c = this.skipNonCodeNEW(--c, skipParams, -1); // add curCommentIndex
-                    let closingRoundBracket = c;
+                    let closingRoundBracket = c + 1;
                     let openingRoundBracket = null;
 
                     // a=>{}
@@ -712,11 +761,11 @@ class StaticAnalyzer {
                         closingRoundBracket++;
                         c = this.getWordFromIndex(c)[0];
                         // todo: figure out if this if j or j+1
-                        openingRoundBracket = c;
+                        openingRoundBracket = c + 1;
                     } else {
                         // (a,b,c)=>
                         [c, cci] = this.skipBrackets(c, cci); //  add curCommentIndex
-                        openingRoundBracket = c;
+                        openingRoundBracket = c + 1;
                     }
 
                     // scopeType = StaticAnalyzer.scopeTypes.arrowFunction;
@@ -763,7 +812,7 @@ class StaticAnalyzer {
                     }
                     curCommentIndex.cci = null;
                     // this._scopeData.push([scopeType, []]);
-                    scopeData = [scopeType, []];
+                    scopeData = [scopeType];
                     break;
             }
 
@@ -776,29 +825,9 @@ class StaticAnalyzer {
 
                 // checking if the scope is a function
                 if (this.source.charCodeAt(j) === ')'.charCodeAt(0)) {
-                    const closingRoundBracket = j;
-
-                    [j, _] = this.skipBrackets(j);
-                    const openingRoundBracket = j;
-
-                    let tmpI = 0;
-
-                    while (tmpI++ < 2) {
-                        j--;
-                        // [j, _] = this.skipNonCode(j, -1); // add curCommentIndex
-                        j = this.skipNonCodeNEW(j, cOBJ, -1);
-                        const nextWord = this.getWordFromIndex(j);
-                        const cur = this.source.substring(nextWord[0], nextWord[1]);
-                        j = nextWord[0];
-                        // const fcn = function(a,b,c){...}
-                        if (es5Functions.indexOf(cur) !== -1) {
-                            scopeType = StaticAnalyzer.scopeTypes.function;
-                            // this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
-                            scopeData = [scopeType, [openingRoundBracket, closingRoundBracket]];
-                            // scopeStart = j;
-                        }
-                    }
-
+                    scopeData = checkIfClassOrFunction(j, 0); // check for a function
+                } else {
+                    scopeData = checkIfClassOrFunction(j, 1); // check for a class
                 }
 
             }
@@ -2165,18 +2194,26 @@ class StaticAnalyzer {
         }
     }
 
+    printFunctionArguments() {
+        const res = this._scopeData.filter(x => x[0] && (x[0] === StaticAnalyzer.scopeTypes.function || x[0] === StaticAnalyzer.scopeTypes.arrowFunction));
+        for (let i in res) {
+            console.log(this.source.substring(res[i][1][0], res[i][1][1]));
+        }
+    }
+
 }
 
 StaticAnalyzer.scopeTypes = {
-    es5: 0b0000000000,
-    es6: 0b1000000000,
-    singleStatement: 0b0100000000,
-    expression: 0b0010000000,
-    class: 0b0000000001,
-    function: 0b0000000010,
-    arrowFunction: 0b0000000100,
-    for: 0b0000001000,
-    if: 0b0000010000,
-    while: 0b0000100000,
-    do: 0b0001000000
+    es5: 0b00000000000,
+    es6: 0b10000000000,
+    singleStatement: 0b00100000000,
+    expression: 0b00010000000,
+    class: 0b00000000001,
+    function: 0b00000000010,
+    arrowFunction: 0b00000000100,
+    for: 0b00000001000,
+    if: 0b00000010000,
+    while: 0b00000100000,
+    do: 0b00001000000,
+    class: 0b10010000000
 };
