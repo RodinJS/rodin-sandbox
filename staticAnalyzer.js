@@ -643,7 +643,7 @@ class StaticAnalyzer {
                     saveScope(-4, StaticAnalyzer.scopeTypes.singleStatement);
                 }
             }
-            bracketStack.pop();
+            return bracketStack.pop();
         };
 
 
@@ -667,15 +667,15 @@ class StaticAnalyzer {
         let state = s.anything;
         let curCommentIndex = {cci: null};
         // let curCommentIndex = 0;
-        const oneLinerSplitters = ['+', '-', '/', '*', '%', '[', ']', '}', '(', '.'].map(x => x.charCodeAt(0));
+        // const oneLinerSplitters = ['+', '-', '/', '*', '%', '[', ']', '}', '(', '.'].map(x => x.charCodeAt(0));
         const es5Functions = ['function', 'function*'];
 
-        const expressionSplitters = [',', '+', '-', '/', '*', '%', '[', ']', '}', '(', '.'].map(x => x.charCodeAt(0));
-        const statementSplitters = ['+', '-', '/', '*', '%', '[', ']', '}', '(', '.'].map(x => x.charCodeAt(0));
+        // const expressionSplitters = [',', '+', '-', '/', '*', '%', '[', ']', '}', '(', '.'].map(x => x.charCodeAt(0));
+        // const statementSplitters = ['+', '-', '/', '*', '%', '[', ']', '}', '(', '.'].map(x => x.charCodeAt(0));
 
-        const bothOperators = ['+', '-', '/', '*', '%', '>', '<', '&', '|', '^', '=', '>=', '<=', '&=', '|=', '^=', '!=', '!==', '===', '<<=', '>>=', '>>>=', '?', ':', 'in', 'instanceof'];
-        const leftOperators = ['delete', 'typeof', 'void', '...', '++', '--', '~'];
-        const rightOperators = ['++', '--'];
+        // const bothOperators = ['+', '-', '/', '*', '%', '>', '<', '&', '|', '^', '=', '>=', '<=', '&=', '|=', '^=', '!=', '!==', '===', '<<=', '>>=', '>>>=', '?', ':', 'in', 'instanceof'];
+        // const leftOperators = ['delete', 'typeof', 'void', '...', '++', '--', '~'];
+        // const rightOperators = ['++', '--'];
 
         const operatorChars = ['+', '-', '/', '*', '%', '>', '<', '&', '|', '^', '=', '?', ':', '~'].map(x => x.charCodeAt(0));
         const operatorWords = ['instanceof', 'delete', 'typeof', 'void', 'in'];
@@ -845,8 +845,8 @@ class StaticAnalyzer {
                 scopeStackSize--;
                 while (true) {
                     // const last = bracketStack.pop();
-                    const last = bracketStack[bracketStack.length - 1];
-                    popBracketStack(bracketMap[bracket]);
+                    bracketStack[bracketStack.length - 1];
+                    const last = popBracketStack(bracketMap[bracket]);
                     if (!last || !bracketStack.length || last > 0 || bracketStack[bracketStack.length - 1] > 0)
                         break;
                     saveScope(bracketStack[bracketStack.length - 1] - 1, StaticAnalyzer.scopeTypes.expression);
