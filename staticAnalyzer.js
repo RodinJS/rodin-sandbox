@@ -698,7 +698,8 @@ class StaticAnalyzer {
                 [j, _] = this.skipBrackets(j);
                 openingRoundBracket = j + 1;
 
-                if (this._scopeData[scopeStack[scopeStackSize - 1]][0] === StaticAnalyzer.scopeTypes.class) {
+                if (this._scopeData[scopeStack[scopeStackSize - 1]] &&
+                    this._scopeData[scopeStack[scopeStackSize - 1]][0] === StaticAnalyzer.scopeTypes.class) {
                     let scopeType = StaticAnalyzer.scopeTypes.function;
                     return [scopeType, [openingRoundBracket, closingRoundBracket]];
                 }
@@ -748,12 +749,10 @@ class StaticAnalyzer {
                     // debugger;
                     i = this.skipNonCodeNEW(i + 2, cOBJ);
                     scopeStart = i;
-                    // check this
-                    // i++;
                     curCommentIndex.cci = null;
                     c = j - 1;
-                    c = this.skipNonCodeNEW(--c, skipParams, -1); // add curCommentIndex
-                    let closingRoundBracket = c + 1;
+                    c = this.skipNonCodeNEW(c, skipParams, -1); // add curCommentIndex
+                    let closingRoundBracket = c;
                     let openingRoundBracket = null;
 
                     // a=>{}
@@ -2195,10 +2194,16 @@ class StaticAnalyzer {
     }
 
     printFunctionArguments() {
-        const res = this._scopeData.filter(x => x[0] && (x[0] === StaticAnalyzer.scopeTypes.function || x[0] === StaticAnalyzer.scopeTypes.arrowFunction));
+        const res = this._scopeData.filter(x => x[0] && (x[0] === StaticAnalyzer.scopeTypes.function || x[0] & StaticAnalyzer.scopeTypes.arrowFunction));
+        const arrRes = [];
         for (let i in res) {
-            console.log(this.source.substring(res[i][1][0], res[i][1][1]));
+            if (!isNaN(res[i][1][0]) && !isNaN(res[i][1][1])) {
+                arrRes.push(this.source.substring(res[i][1][0], res[i][1][1]));
+            }
+
+            // console.log(res[i][1][0], res[i][1][1]);
         }
+        return arrRes.join('\n');
     }
 
 }
