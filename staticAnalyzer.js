@@ -1,4 +1,5 @@
 let _ = undefined;
+const cOBJ = {};
 
 const find = (source, needle, method = 'indexOf') => {
     const res = [];
@@ -113,7 +114,7 @@ class StaticAnalyzer {
         this._commentsAndStringsAnalyzed = false;
         this._lca = null;
         this._es6Scopes = null;
-        this._scopeData = [[], []];
+        this._scopeData = [];
         this._es5Scopes = null;
 
         this._es6ScopeGraph = null;
@@ -633,35 +634,112 @@ class StaticAnalyzer {
         let scopeStackSize = 0;
 
         const bracketStack = [];
+        const popBracketStack = (bracket) => {
+            const last = bracketStack[bracketStack.length - 1];
+            if (bracket !== last) {
+                if (last === -1) {
+                    saveScope(-2, StaticAnalyzer.scopeTypes.expression);
+                } else if (last === -3) {
+                    saveScope(-4, StaticAnalyzer.scopeTypes.singleStatement);
+                }
+            }
+            return bracketStack.pop();
+        };
+
 
         const s = {
             anything: 0
         };
 
+        const bracketMap = {
+            ['('.charCodeAt(0)]: ')'.charCodeAt(0),
+            ['['.charCodeAt(0)]: ']'.charCodeAt(0),
+            ['{'.charCodeAt(0)]: '}'.charCodeAt(0),
+            [')'.charCodeAt(0)]: '('.charCodeAt(0),
+            [']'.charCodeAt(0)]: '['.charCodeAt(0),
+            ['}'.charCodeAt(0)]: '{'.charCodeAt(0),
+            [-1]: -2,
+            [-2]: -1,
+            [-3]: -4,
+            [-4]: -3
+        };
+
         let state = s.anything;
-        let curCommentIndex = 0;
-        const oneLinerSplitters = ['+', '-', '/', '*', '%', '[', ']', '}', '(', '.'].map(x => x.charCodeAt(0));
+        let curCommentIndex = {cci: null};
+        // let curCommentIndex = 0;
+        // const oneLinerSplitters = ['+', '-', '/', '*', '%', '[', ']', '}', '(', '.'].map(x => x.charCodeAt(0));
         const es5Functions = ['function', 'function*'];
 
-        const expressionSplitters = [',', '+', '-', '/', '*', '%', '[', ']', '}', '(', '.'].map(x => x.charCodeAt(0));
-        const statementSplitters = ['+', '-', '/', '*', '%', '[', ']', '}', '(', '.'].map(x => x.charCodeAt(0));
+        // const expressionSplitters = [',', '+', '-', '/', '*', '%', '[', ']', '}', '(', '.'].map(x => x.charCodeAt(0));
+        // const statementSplitters = ['+', '-', '/', '*', '%', '[', ']', '}', '(', '.'].map(x => x.charCodeAt(0));
 
-        const bothOperators = ['+', '-', '/', '*', '%', '>', '<', '&', '|', '^', '=', '>=', '<=', '&=', '|=', '^=', '!=', '!==', '===', '<<=', '>>=', '>>>=', '?', ':', 'in', 'instanceof'];
-        const leftOperators = ['delete', 'typeof', 'void', '...', '++', '--', '~'];
-        const rightOperators = ['++', '--'];
+        // const bothOperators = ['+', '-', '/', '*', '%', '>', '<', '&', '|', '^', '=', '>=', '<=', '&=', '|=', '^=', '!=', '!==', '===', '<<=', '>>=', '>>>=', '?', ':', 'in', 'instanceof'];
+        // const leftOperators = ['delete', 'typeof', 'void', '...', '++', '--', '~'];
+        // const rightOperators = ['++', '--'];
 
         const operatorChars = ['+', '-', '/', '*', '%', '>', '<', '&', '|', '^', '=', '?', ':', '~'].map(x => x.charCodeAt(0));
         const operatorWords = ['instanceof', 'delete', 'typeof', 'void', 'in'];
 
+        /**
+         * checks if the there is a function or class at the given position
+         * if type is 0 checks only for function,
+         * if type is 1 checks only for class
+         * @param j
+         * @param type
+         * @return {*}
+         */
+        const checkIfClassOrFunction = (j, type = 0) => {
+            let scopeData = [StaticAnalyzer.scopeTypes.es6];
+            let closingRoundBracket = null, openingRoundBracket = null;
+
+            // only need to do this for functions, classes dont have ()
+            if (type === 0) {
+                closingRoundBracket = j + 1;
+                [j, _] = this.skipBrackets(j);
+                openingRoundBracket = j + 1;
+
+                if (this._scopeData[scopeStack[scopeStackSize - 1]] &&
+                    this._scopeData[scopeStack[scopeStackSize - 1]][0] === StaticAnalyzer.scopeTypes.class) {
+                    let scopeType = StaticAnalyzer.scopeTypes.function;
+                    return [scopeType, [openingRoundBracket, closingRoundBracket]];
+                }
+            }
+
+
+            let tmpI = 0;
+
+            while (tmpI++ < 2) {
+                j--;
+                // [j, _] = this.skipNonCode(j, -1); // add curCommentIndex
+                j = this.skipNonCodeNEW(j, cOBJ, -1);
+                const nextWord = this.getWordFromIndex(j);
+                const cur = this.source.substring(nextWord[0], nextWord[1]);
+                j = nextWord[0];
+                // const fcn = function(a,b,c){...}
+                if (type === 0 && es5Functions.indexOf(cur) !== -1) {
+                    let scopeType = StaticAnalyzer.scopeTypes.function;
+                    scopeData = [scopeType, [openingRoundBracket, closingRoundBracket]];
+                    break;
+                } else if (type === 1 && cur === 'class') {
+                    let scopeType = StaticAnalyzer.scopeTypes.class;
+                    scopeData = [scopeType];
+                    break;
+                }
+            }
+            return scopeData;
+        };
+
         //todo: one line arrow functions, for, if, while, do
         const saveScope = (bracket, scopeType = StaticAnalyzer.scopeTypes.es6) => {
+            let scopeData = [StaticAnalyzer.scopeTypes.es6];
 
             let isOpening = false;
             let scopeStart = i;
             let scopeEnd = i;
             let j = i;
             // cur comment index!!!!!
-            let cci = null;
+            let cci = 0;
+            const skipParams = {cci: null};
             let c = null;
             // todo: make a debug flag for these things
             this._scopeString += String.fromCharCode(bracket);
@@ -669,12 +747,11 @@ class StaticAnalyzer {
             switch (scopeType) {
                 case StaticAnalyzer.scopeTypes.arrowFunction:
                     // debugger;
-                    [i, _] = this.skipNonCode(i + 2);
+                    i = this.skipNonCodeNEW(i + 2, cOBJ);
                     scopeStart = i;
-                    i++;
+                    curCommentIndex.cci = null;
                     c = j - 1;
-                    c--;
-                    [c, cci] = this.skipNonCode(c, -1); // add curCommentIndex
+                    c = this.skipNonCodeNEW(c, skipParams, -1); // add curCommentIndex
                     let closingRoundBracket = c;
                     let openingRoundBracket = null;
 
@@ -683,11 +760,11 @@ class StaticAnalyzer {
                         closingRoundBracket++;
                         c = this.getWordFromIndex(c)[0];
                         // todo: figure out if this if j or j+1
-                        openingRoundBracket = c;
+                        openingRoundBracket = c + 1;
                     } else {
                         // (a,b,c)=>
                         [c, cci] = this.skipBrackets(c, cci); //  add curCommentIndex
-                        openingRoundBracket = c;
+                        openingRoundBracket = c + 1;
                     }
 
                     // scopeType = StaticAnalyzer.scopeTypes.arrowFunction;
@@ -696,15 +773,16 @@ class StaticAnalyzer {
                     //     scopeType = scopeType | StaticAnalyzer.scopeTypes.expression;
                     //     bracket = -3; // round bracket
                     // } else
-                    if (this.source.charCodeAt(i - 1) !== '{'.charCodeAt(0)) {
+                    if (this.source.charCodeAt(i) !== '{'.charCodeAt(0)) {
                         // revert back one character so things like ({}) will work
                         i -= 2;
+                        curCommentIndex.cci = null;
                         scopeType = scopeType | StaticAnalyzer.scopeTypes.expression;
                         bracket = -1; // no bracket at all
                     }
 
-                    this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
-
+                    // this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
+                    scopeData = [scopeType, [openingRoundBracket, closingRoundBracket]];
 
                     isOpening = true;
                     break;
@@ -712,25 +790,28 @@ class StaticAnalyzer {
                 case StaticAnalyzer.scopeTypes.expression:
                     isOpening = false;
                     scopeEnd = i - 1;
-                    bracketStack.pop();
+
+                    // bracketStack.pop();
                     break;
                 case StaticAnalyzer.scopeTypes.for:
                     isOpening = true;
                     scopeStart = i;
-                    [i, cci] = this.skipNonCode(i + 3);
-                    [i, _] = this.skipBrackets(i, cci);
-                    [i, cci] = this.skipNonCode(++i);
+                    i = this.skipNonCodeNEW(i + 3, skipParams);
+                    [i, _] = this.skipBrackets(i, skipParams.cci);
+                    i = this.skipNonCodeNEW(++i, skipParams);
 
-                    i++;
+                    // i++;
 
-                    if (this.source.charCodeAt(i - 1) !== '{'.charCodeAt(0)) {
+                    if (this.source.charCodeAt(i) !== '{'.charCodeAt(0)) {
                         // revert back one character so things like ({}) will work
+                        // not sure if -=2 or -=1
                         i -= 2;
                         scopeType = scopeType | StaticAnalyzer.scopeTypes.singleStatement;
                         bracket = -3; // no bracket at all, but a statement instead of an expression
                     }
-
-                    this._scopeData.push([scopeType, []]);
+                    curCommentIndex.cci = null;
+                    // this._scopeData.push([scopeType, []]);
+                    scopeData = [scopeType];
                     break;
             }
 
@@ -738,31 +819,14 @@ class StaticAnalyzer {
             if (bracket === '{'.charCodeAt(0)) {
                 // bracketStack.push(bracket);
                 isOpening = true;
-                [j, _] = this.skipNonCode(i - 1, -1);
+                // [j, _] = this.skipNonCode(i - 1, -1);
+                j = this.skipNonCodeNEW(--j, cOBJ, -1);
 
                 // checking if the scope is a function
                 if (this.source.charCodeAt(j) === ')'.charCodeAt(0)) {
-                    const closingRoundBracket = j;
-
-                    [j, _] = this.skipBrackets(j);
-                    const openingRoundBracket = j;
-
-                    let tmpI = 0;
-
-                    while (tmpI++ < 2) {
-                        j--;
-                        [j, _] = this.skipNonCode(j, -1); // add curCommentIndex
-                        const nextWord = this.getWordFromIndex(j);
-                        const cur = this.source.substring(nextWord[0], nextWord[1]);
-                        j = nextWord[0];
-                        // const fcn = function(a,b,c){...}
-                        if (es5Functions.indexOf(cur) !== -1) {
-                            scopeType = StaticAnalyzer.scopeTypes.function;
-                            this._scopeData.push([scopeType, [openingRoundBracket, closingRoundBracket]]);
-                            // scopeStart = j;
-                        }
-                    }
-
+                    scopeData = checkIfClassOrFunction(j, 0); // check for a function
+                } else {
+                    scopeData = checkIfClassOrFunction(j, 1); // check for a class
                 }
 
             }
@@ -798,19 +862,31 @@ class StaticAnalyzer {
                     scopeStack[scopeStackSize] = es6Scopes[0].length - 1;
                 }
                 scopeStackSize++;
+                this._scopeData.push(scopeData);
             } else {
                 // change the value we put as NaN earlier
                 es6Scopes[1][scopeStack[scopeStackSize - 1]] = scopeEnd;
                 this._closingScopesSorted[0].push(scopeEnd);
                 this._closingScopesSorted[1].push(scopeStack[scopeStackSize - 1]);
 
+                // todo: this definitely needs major refactoring
                 scopeStackSize--;
-                bracketStack.pop();
+                while (true) {
+                    // const last = bracketStack.pop();
+                    bracketStack[bracketStack.length - 1];
+                    const last = popBracketStack(bracketMap[bracket]);
+                    if (!last || !bracketStack.length || last > 0 || bracketStack[bracketStack.length - 1] > 0)
+                        break;
+                    saveScope(bracketStack[bracketStack.length - 1] - 1, StaticAnalyzer.scopeTypes.expression);
+                }
+                // todo: figure out why this leads to inifnite recursion
+                // popBracketStack(bracket);
             }
             // console.log(scopeStart, scopeType.toString(2));
 
             //es6Scopes.push([i, bracket]);
         };
+
 
         const doEvalCheck = (expr, direction = -1) => {
             try {
@@ -832,6 +908,58 @@ class StaticAnalyzer {
             return true;
         };
 
+        const checkIfExpressionIsOver = (bracketType) => {
+            let a = i;
+            let strArr = [];
+            const skipParams = {cci: null};
+            a = this.skipNonCodeNEW(a, skipParams, -1);
+            while (true) {
+                // debugger;
+                if (operatorChars.indexOf(this.source.charCodeAt(a)) === -1) {
+                    let [s, e] = this.getWordFromIndex(a);
+                    const subStr = this.source.substring(s, e);
+                    if (operatorWords.indexOf(subStr) !== -1) {
+                        // str += subStr.reverse();
+                        strArr.push(...subStr.split('').reverse());
+                        a = s - 1;
+                    } else {
+                        break;
+                    }
+                }
+                // str += this.source.charAt(a);
+                strArr.push(this.source.charAt(a));
+                a = this.skipNonCodeNEW(a - 1, skipParams, -1);
+            }
+            // console.log(str);
+            let operatorStr = strArr.reverse().join('');
+            strArr = [];
+            // debugger;
+            if (doEvalCheck(operatorStr)) {
+                skipParams.cci = null;
+                a = this.skipNonCodeNEW(i, skipParams);
+                while (true) {
+                    if (operatorChars.indexOf(this.source.charCodeAt(a)) === -1) {
+                        let [s, e] = this.getWordFromIndex(a);
+                        const subStr = this.source.substring(s, e);
+                        if (operatorWords.indexOf(subStr) !== -1) {
+                            strArr.push(subStr);
+                            a = e;
+                        } else {
+                            break;
+                        }
+                    }
+                    // str += this.source.charAt(a);
+                    strArr.push(this.source.charAt(a));
+                    a = this.skipNonCodeNEW(a + 1, skipParams);
+                }
+
+                operatorStr += strArr.join('');
+                if (!doEvalCheck(operatorStr, 0)) {
+                    saveScope(bracketType, StaticAnalyzer.scopeTypes.singleStatement);
+                }
+            }
+        };
+
         while (i < n) {
             const cur = this.source.charCodeAt(i);
 
@@ -849,85 +977,42 @@ class StaticAnalyzer {
                 this.source.substr(i, 3) === 'for') {
                 saveScope(cur, StaticAnalyzer.scopeTypes.for);
             } else {
-                if (cur === '('.charCodeAt(0) || cur === '['.charCodeAt(0)) {
-                    bracketStack.push(cur);
-                } else if (cur === ')'.charCodeAt(0) || cur === ']'.charCodeAt(0)) {
-                    bracketStack.pop();
-                }
 
 
-                // ++ -- needs fixing
+
+                // arrow functions, e.g. a = (a,b,c,d)=>a+b+c+typeof d
                 if (bracketStack[bracketStack.length - 1] === -1) {
                     if (cur === ';'.charCodeAt(0) || cur === ','.charCodeAt(0)) {
                         saveScope(-2, StaticAnalyzer.scopeTypes.expression);
                     } else if (cur === '\n'.charCodeAt(0)) {
-                        let a = i, b = i;
-                        [a, _] = this.skipNonCode(a, -1);
-                        [b, _] = this.skipNonCode(b, 1);
-                        if (statementSplitters.indexOf(this.source.charCodeAt(a)) === -1 &&
-                            statementSplitters.indexOf(this.source.charCodeAt(b)) === -1) {
-                            saveScope(-2, StaticAnalyzer.scopeTypes.expression);
-                        }
-
+                        checkIfExpressionIsOver(-2);
                     }
                 }
 
-                // if (bracketStack[bracketStack.length - 1] === -3) {
-                //     if (cur === ';'.charCodeAt(0)) {
-                //         saveScope(-2, StaticAnalyzer.scopeTypes.singleStatement);
-                //     } else if (cur === '\n'.charCodeAt(0)) {
-                //         let a = i, b = i;
-                //         [a, _] = this.skipNonCode(a, -1);
-                //         [b, _] = this.skipNonCode(b, 1);
-                //         if (expressionSplitters.indexOf(this.source.charCodeAt(a)) === -1 &&
-                //             expressionSplitters.indexOf(this.source.charCodeAt(b)) === -1) {
-                //             saveScope(-2, StaticAnalyzer.scopeTypes.singleStatement);
-                //         }
-                //
-                //     }
-                // }
-
+                // for loops e.g. for (let i=0;i<10;i++) console.log(i), i++, true, i--
                 if (bracketStack[bracketStack.length - 1] === -3) {
                     if (cur === ';'.charCodeAt(0)) {
                         saveScope(-4, StaticAnalyzer.scopeTypes.singleStatement);
                     } else if (cur === '\n'.charCodeAt(0)) {
-                        let a = i;
-                        let str = '';
-                        let cci = null;
-                        [a, cci] = this.skipNonCode(a, -1);
-                        while (true) {
-                            // debugger;
-                            if (operatorChars.indexOf(this.source.charCodeAt(a)) === -1) {
-                                let [s, e] = this.getWordFromIndex(a);
-                                const subStr = this.source.substring(s, e);
-                                if (operatorWords.indexOf(subStr) !== -1) {
-                                    str += subStr;
-                                    a = s - 1;
-                                } else {
-                                    break;
-                                }
-                            }
-                            str = this.source.charAt(a) + str;
-                            [a, cci] = this.skipNonCode(a - 1, -1, cci);
-                        }
-                        // console.log(str);
-                        if (doEvalCheck(str)) {
-                            saveScope(-4, StaticAnalyzer.scopeTypes.singleStatement);
-                        }
-
-                        // [b, _] = this.skipNonCode(b, 1);
-                        // if (expressionSplitters.indexOf(this.source.charCodeAt(a)) === -1 &&
-                        //     expressionSplitters.indexOf(this.source.charCodeAt(b)) === -1) {
-                        //     saveScope(-2, StaticAnalyzer.scopeTypes.singleStatement);
-                        // }
-
+                        checkIfExpressionIsOver(-4);
                     }
+                }
+
+                if (cur === '('.charCodeAt(0) || cur === '['.charCodeAt(0)) {
+                    bracketStack.push(cur);
+                } else if (cur === ')'.charCodeAt(0)) {
+                    popBracketStack('('.charCodeAt(0));
+                } else if (cur === ']'.charCodeAt(0)) {
+                    popBracketStack('('.charCodeAt(0));
                 }
 
 
             }
+            // console.log(i);
+            i = this.skipNonCodeNEW(++i, curCommentIndex, 1, true, true, false);
+            // i = this.skipNonCodeNEW(++i, cOBJ, 1, true, true, false);
 
-            [i, curCommentIndex] = this.skipNonCode(++i, 1, curCommentIndex, true, true, false);
+            // [i, curCommentIndex] = this.skipNonCode(++i, 1, curCommentIndex, true, true, false);
             // i++;
 
         }
@@ -992,6 +1077,130 @@ class StaticAnalyzer {
         }
 
         return [j, curCommentIndex, oldJ !== j];
+    };
+
+    skipNonCodeNEW(j, params, direction = 1, skipComments = true, skipWhitespace = true, skipNewLine = true) {
+        const oldJ = j;
+        let curCommentIndex = params.cci;// !== undefined ? params.cci : binarySearch(this._commentsAndStrings, j, true);
+        if (curCommentIndex !== 0 && !curCommentIndex) {
+            curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
+        }
+        // if (isNaN(curCommentIndex))
+        //     curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
+
+        // // todo: @sergi het es pah@ qnnarkel mihat
+        // if (curCommentIndex === true || curCommentIndex === false) {
+        //     skipNewLine = skipWhitespace;
+        //     skipWhitespace = skipComments;
+        //     skipComments = curCommentIndex;
+        //     params.cci = binarySearch(this._commentsAndStrings, j, true);
+        // }
+
+        while (j < this.source.length && j >= 0) {
+            if (skipComments && curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
+                this._commentsAndStrings[curCommentIndex][0] <= j && j <= this._commentsAndStrings[curCommentIndex][1]) {
+
+                j = this._commentsAndStrings[curCommentIndex][direction === 1 ? 1 : 0];
+                if (direction === -1) {
+                    j--;
+                }
+
+                curCommentIndex += direction;
+                continue;
+            }
+
+            // todo: remove it when all refactoring will done
+            // if (this.source.charCodeAt(j) <= 32) {
+            //     j += direction;
+            //     continue;
+            // }
+
+            if ((skipNewLine && this.source.charCodeAt(j) === 10) || (skipWhitespace && this.source.charCodeAt(j) <= 32 && this.source.charCodeAt(j) !== 10)) {
+                j += direction;
+                continue;
+            }
+
+            break;
+        }
+        if (params.hasOwnProperty('cci')) {
+            params.cci = curCommentIndex;
+        }
+        if (params.hasOwnProperty('skipped')) {
+            params.skipped = oldJ === j;
+        }
+
+        // return [j, curCommentIndex, oldJ !== j];
+        return j;
+    };
+
+    skipBracketsNEW(j, params, forward = true, backward = true) {
+        let oldJ = j;
+        const bracket = this.source.charCodeAt(j);
+
+        //curCommentIndex = binarySearch(this._commentsAndStrings, j, true)
+
+        let curCommentIndex = params.cci;// !== undefined ? params.cci : binarySearch(this._commentsAndStrings, j, true);
+        if (curCommentIndex !== 0 && !curCommentIndex) {
+            curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
+        }
+
+        const isOpening = ['{'.charCodeAt(0), '('.charCodeAt(0), '['.charCodeAt(0)].indexOf(bracket) !== -1;
+        const isClosing = ['}'.charCodeAt(0), ')'.charCodeAt(0), ']'.charCodeAt(0)].indexOf(bracket) !== -1;
+
+        if (!isOpening && !isClosing)
+            return [oldJ, curCommentIndex];
+
+        if (isOpening && !forward || isClosing && !backward)
+            return [oldJ, curCommentIndex];
+
+        if (bracket === '{'.charCodeAt(0)) {
+            curCommentIndex = NaN;
+            return [this._es6Scopes[1][this._es6Scopes[0].indexOf(j)], curCommentIndex];
+        } else if (bracket === '}'.charCodeAt(0)) {
+            curCommentIndex = NaN;
+            return [this._es6Scopes[0][this._es6Scopes[1].indexOf(j)] - 1, curCommentIndex];
+        }
+
+        let reverseBracket;
+        if (bracket === '('.charCodeAt(0))
+            reverseBracket = ')'.charCodeAt(0);
+
+        if (bracket === ')'.charCodeAt(0))
+            reverseBracket = '('.charCodeAt(0);
+
+        if (bracket === '['.charCodeAt(0))
+            reverseBracket = ']'.charCodeAt(0);
+
+        if (bracket === ']'.charCodeAt(0))
+            reverseBracket = '['.charCodeAt(0);
+
+        let stack = 1;
+        const direction = isOpening ? 1 : -1;
+        j += direction;
+        while (j < this.source.length && j >= 0) {
+            [j, curCommentIndex] = this.skipNonCode(j, direction);
+
+            if (bracket === this.source.charCodeAt(j)) {
+                stack++;
+            } else if (reverseBracket === this.source.charCodeAt(j)) {
+                stack--;
+
+                if (stack === 0)
+                    return [isOpening ? j : j - 1, curCommentIndex];
+            }
+
+            j += direction;
+        }
+
+        if (params.hasOwnProperty('cci')) {
+            params.cci = curCommentIndex;
+        }
+
+        if (params.hasOwnProperty('skipped')) {
+            params.skipped = oldJ === j;
+        }
+
+        return oldJ;
     };
 
     skipBrackets(j, curCommentIndex = binarySearch(this._commentsAndStrings, j, true), forward = true, backward = true) {
@@ -1975,18 +2184,42 @@ class StaticAnalyzer {
         console.table(reshape())
     }
 
+    printBrokenScopes() {
+        const res = [];
+        for (let i = 0; i < this._es6Scopes[0].length; i++)
+            if (isNaN(this._es6Scopes[1][i]))
+                res.push(this._es6Scopes[0][i]);
+        for (let i in res) {
+            console.log(this.source.substr(res[i], 100));
+        }
+    }
+
+    printFunctionArguments() {
+        const res = this._scopeData.filter(x => x[0] && (x[0] === StaticAnalyzer.scopeTypes.function || x[0] & StaticAnalyzer.scopeTypes.arrowFunction));
+        const arrRes = [];
+        for (let i in res) {
+            if (!isNaN(res[i][1][0]) && !isNaN(res[i][1][1])) {
+                arrRes.push(this.source.substring(res[i][1][0], res[i][1][1]));
+            }
+
+            // console.log(res[i][1][0], res[i][1][1]);
+        }
+        return arrRes.join('\n');
+    }
+
 }
 
 StaticAnalyzer.scopeTypes = {
-    es5: 0b0000000000,
-    es6: 0b1000000000,
-    singleStatement: 0b0100000000,
-    expression: 0b0010000000,
-    class: 0b0000000001,
-    function: 0b0000000010,
-    arrowFunction: 0b0000000100,
-    for: 0b0000001000,
-    if: 0b0000010000,
-    while: 0b0000100000,
-    do: 0b0001000000
+    es5: 0b00000000000,
+    es6: 0b10000000000,
+    singleStatement: 0b00100000000,
+    expression: 0b00010000000,
+    class: 0b00000000001,
+    function: 0b00000000010,
+    arrowFunction: 0b00000000100,
+    for: 0b00000001000,
+    if: 0b00000010000,
+    while: 0b00000100000,
+    do: 0b00001000000,
+    class: 0b10010000000
 };
