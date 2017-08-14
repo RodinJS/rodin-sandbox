@@ -1085,16 +1085,6 @@ class StaticAnalyzer {
         if (curCommentIndex !== 0 && !curCommentIndex) {
             curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
         }
-        // if (isNaN(curCommentIndex))
-        //     curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
-
-        // // todo: @sergi het es pah@ qnnarkel mihat
-        // if (curCommentIndex === true || curCommentIndex === false) {
-        //     skipNewLine = skipWhitespace;
-        //     skipWhitespace = skipComments;
-        //     skipComments = curCommentIndex;
-        //     params.cci = binarySearch(this._commentsAndStrings, j, true);
-        // }
 
         while (j < this.source.length && j >= 0) {
             if (skipComments && curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
@@ -1108,12 +1098,6 @@ class StaticAnalyzer {
                 curCommentIndex += direction;
                 continue;
             }
-
-            // todo: remove it when all refactoring will done
-            // if (this.source.charCodeAt(j) <= 32) {
-            //     j += direction;
-            //     continue;
-            // }
 
             if ((skipNewLine && this.source.charCodeAt(j) === 10) || (skipWhitespace && this.source.charCodeAt(j) <= 32 && this.source.charCodeAt(j) !== 10)) {
                 j += direction;
@@ -1129,7 +1113,6 @@ class StaticAnalyzer {
             params.skipped = oldJ === j;
         }
 
-        // return [j, curCommentIndex, oldJ !== j];
         return j;
     };
 
@@ -2004,8 +1987,7 @@ class StaticAnalyzer {
             // }
 
             const scopeStart = scope === -1 ? 0 : this._es6Scopes[0][scope];
-            // we need to check for commas not just keywords for multiple definition variables
-            [index, _] = this.skipNonCode(index - 1, -1);
+            index = this.skipNonCodeNEW(index - 1, cOBJ, -1);
 
             const tmp = [];
             // multivariable case
@@ -2078,9 +2060,6 @@ class StaticAnalyzer {
             }
         }
 
-        // console.log(declarationScopes);
-        console.table({references, scopes, isDec, decType});
-
         for (let i = 0; i < references.length; i++) {
             // todo: get all updated references
 
@@ -2101,7 +2080,7 @@ class StaticAnalyzer {
             // matches.push(match.index);
         }
 
-        console.log(matches);
+        console.table(reshapeObject({references, scopes, isDec, decType}));
     }
 
 
@@ -2139,49 +2118,11 @@ class StaticAnalyzer {
     }
 
     visualizeExports() {
-        const reshape = () => {
-
-            const len = this.exports.names.length;
-
-            const ret = [];
-
-            for (let i = 0; i < len; i++) {
-                let col = {};
-
-                for (let key in this.exports) {
-                    col[key] = this.exports[key][i]
-                }
-
-                ret.push(col)
-            }
-
-            return ret;
-        };
-
-        console.table(reshape())
+        console.table(reshapeObject(this.imports))
     }
 
     visualizeImports() {
-        const reshape = () => {
-
-            const len = this.imports.names.length;
-
-            const ret = [];
-
-            for (let i = 0; i < len; i++) {
-                let col = {};
-
-                for (let key in this.imports) {
-                    col[key] = this.imports[key][i]
-                }
-
-                ret.push(col)
-            }
-
-            return ret;
-        };
-
-        console.table(reshape())
+        console.table(reshapeObject(this.imports))
     }
 
     printBrokenScopes() {
@@ -2208,6 +2149,19 @@ class StaticAnalyzer {
     }
 
 }
+
+const reshapeObject = (object) => {
+    const len = object[Object.keys(object)[0]].length;
+    const ret = [];
+    for (let i = 0; i < len; i++) {
+        let col = {};
+        for (let key in object) {
+            col[key] = object[key][i]
+        }
+        ret.push(col)
+    }
+    return ret;
+};
 
 StaticAnalyzer.scopeTypes = {
     es5: 0b00000000000,
