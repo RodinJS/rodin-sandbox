@@ -223,7 +223,7 @@ class StaticAnalyzer {
         const skipNonCode = (j) => {
             let resI = commentsAndStrings.length - 1;
             while (j >= 0 && (this.source.charCodeAt(j) <= 32 || /* || this.source.charCodeAt(j) === 10 || /!*this.source.charCodeAt(j) === 9 ||*!/*/
-                (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j))) {
+            (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j))) {
                 j--;
                 if (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j) {
                     j = commentsAndStrings[resI][0] - 1;
@@ -913,6 +913,11 @@ class StaticAnalyzer {
             let strArr = [];
             const skipParams = {cci: null};
             a = this.skipNonCodeNEW(a, skipParams, -1);
+            if (this.source.charCodeAt(a) === '.'.charCodeAt(0) ||
+                this.source.charCodeAt(a) === '('.charCodeAt(0) ||
+                this.source.charCodeAt(a) === '['.charCodeAt(0)) {
+                return;
+            }
             while (true) {
                 // debugger;
                 if (operatorChars.indexOf(this.source.charCodeAt(a)) === -1) {
@@ -937,6 +942,11 @@ class StaticAnalyzer {
             if (doEvalCheck(operatorStr)) {
                 skipParams.cci = null;
                 a = this.skipNonCodeNEW(i, skipParams);
+                if (this.source.charCodeAt(a) === '.'.charCodeAt(0) ||
+                    this.source.charCodeAt(a) === '('.charCodeAt(0) ||
+                    this.source.charCodeAt(a) === '['.charCodeAt(0)) {
+                    return;
+                }
                 while (true) {
                     if (operatorChars.indexOf(this.source.charCodeAt(a)) === -1) {
                         let [s, e] = this.getWordFromIndex(a);
