@@ -1256,18 +1256,19 @@ class StaticAnalyzer {
                 i = j;
 
                 const currChar = this.source.charAt(i);
+                const currCharCode = this.source.charCodeAt(i);
 
                 switch (state) {
                     /**
                      * Checks export type
                      */
                     case states.start:
-                        if ('{'.charCodeAt(0) === currChar.charCodeAt(0)) {
+                        if (123 /* '{'.charCodeAt(0) */ === currCharCode) {
                             state = states.brackets.anything;
                             break;
                         }
 
-                        if ('*'.charCodeAt(0) === currChar.charCodeAt(0)) {
+                        if (42 /* '*'.charCodeAt(0) */ === currCharCode) {
                             memory.exportType = '*';
                             state = states.from;
                             saveVar();
