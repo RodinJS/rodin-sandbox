@@ -223,7 +223,7 @@ class StaticAnalyzer {
         const skipNonCode = (j) => {
             let resI = commentsAndStrings.length - 1;
             while (j >= 0 && (this.source.charCodeAt(j) <= 32 || /* || this.source.charCodeAt(j) === 10 || /!*this.source.charCodeAt(j) === 9 ||*!/*/
-            (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j))) {
+                (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j))) {
                 j--;
                 if (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j) {
                     j = commentsAndStrings[resI][0] - 1;
@@ -1091,7 +1091,7 @@ class StaticAnalyzer {
 
     skipNonCodeNEW(j, params, direction = 1, skipComments = true, skipWhitespace = true, skipNewLine = true) {
         const oldJ = j;
-        let curCommentIndex = params.cci;// !== undefined ? params.cci : binarySearch(this._commentsAndStrings, j, true);
+        let curCommentIndex = params.cci;
         if (curCommentIndex !== 0 && !curCommentIndex) {
             curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
         }
@@ -1130,9 +1130,7 @@ class StaticAnalyzer {
         let oldJ = j;
         const bracket = this.source.charCodeAt(j);
 
-        //curCommentIndex = binarySearch(this._commentsAndStrings, j, true)
-
-        let curCommentIndex = params.cci;// !== undefined ? params.cci : binarySearch(this._commentsAndStrings, j, true);
+        let curCommentIndex = params.cci;
         if (curCommentIndex !== 0 && !curCommentIndex) {
             curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
         }
@@ -1171,7 +1169,7 @@ class StaticAnalyzer {
         const direction = isOpening ? 1 : -1;
         j += direction;
         while (j < this.source.length && j >= 0) {
-            [j, curCommentIndex] = this.skipNonCode(j, direction);
+            j = this.skipNonCodeNEW(j, params, direction);
 
             if (bracket === this.source.charCodeAt(j)) {
                 stack++;
@@ -1257,26 +1255,17 @@ class StaticAnalyzer {
         return [oldJ, curCommentIndex];
     };
 
-    skipNonCodeAndScopes(j, direction = 1, curCommentIndex = binarySearch(this._commentsAndStrings, j, true), skipComments = true, skipWhitespace = true, skipNewLine = true) {
-        const oldJ = j;
+    skipNonCodeAndScopes(j, params, direction = 1, skipComments = true, skipWhitespace = true, skipNewLine = true) {
         const skipBracketsForward = direction === 1;
-
-        // todo: @sergi het es pah@ qnnarkel mihat
-        if (curCommentIndex === true || curCommentIndex === false) {
-            skipNewLine = skipWhitespace;
-            skipWhitespace = skipComments;
-            skipComments = curCommentIndex;
-            curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
-        }
 
         let currJ;
         do {
             currJ = j;
-            [j, curCommentIndex] = this.skipNonCode(j, direction, curCommentIndex, skipComments, skipWhitespace, skipNewLine);
-            [j, curCommentIndex] = this.skipBrackets(j, curCommentIndex, skipBracketsForward, !skipBracketsForward);
+            j = this.skipNonCodeNEW(j, params, direction, skipComments, skipWhitespace, skipNewLine);
+            j = this.skipBracketsNEW(j, params, skipBracketsForward, !skipBracketsForward);
         } while (currJ !== j && j >= 0 && j < this.source.length);
 
-        return [j, curCommentIndex, j !== oldJ];
+        return j;
     }
 
     getWordFromIndex(i) {
@@ -1991,6 +1980,7 @@ class StaticAnalyzer {
         const isMultivariable = [true, true, true, false, false, false];
 
         const getDeclarationType = (index, scope = this.findScope(index)) => {
+            const originalIndex = index;
             // todo: fix it when @serg will provide data
             // if(insideFunctionParams) {
             //     return isfunctionDefinition
@@ -2002,22 +1992,20 @@ class StaticAnalyzer {
             const tmp = [];
             // multivariable case
             if (this.source.charCodeAt(index) === ','.charCodeAt(0)) {
-                // todo: go back until var/let/const...
-                // todo: gor has this code somewhere, find it
-                // todo: put it here :D
+                // araj gnal minchev handipel declaration end symbol
 
-                let nonCodeSkipped = false;
                 let beforeNewLine = false;
                 while (index > scopeStart) {
-                    [index, _, nonCodeSkipped] = this.skipNonCodeAndScopes(index, -1, true, true, false);
-                    tmp.push(this.source.charAt(index));
+                    index = this.skipNonCodeAndScopes(index, cOBJ, -1, true, true, false);
+                    const currCharCode = this.source.charCodeAt(index);
+                    tmp.push(String.fromCharCode(currCharCode));
 
-                    beforeNewLine = this.source.charCodeAt(index) === 10; // newline symbol
+                    beforeNewLine = currCharCode === 10; // newline symbol
 
                     index--;
                 }
 
-                console.log(tmp.reverse().join(''));
+                console.log(originalIndex, tmp.reverse().join(''));
 
                 if (index === scopeStart)
                     return null;
@@ -2027,14 +2015,17 @@ class StaticAnalyzer {
             let curLength = 0;
             const len = declarationTypes.length;
             let cur = '';
+
             while (i < len) {
                 if (curLength !== declarationTypes[i].length) {
                     curLength = declarationTypes[i].length;
                     cur = this.source.substr(index - curLength + 1, curLength);
                 }
+
                 if (cur === declarationTypes[i]) {
                     return cur;
                 }
+
                 i++;
             }
             return null;
