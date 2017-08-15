@@ -135,7 +135,8 @@ class StaticAnalyzer {
 
         this._es5ScopeMap = [];
 
-        this._closingScopesSorted = [[], []];
+        this._closingEs5ScopesSorted = [[], []];
+        this._closingEs6ScopesSorted = [[], []];
     }
 
     // analyzeCommentsAndStrings() {
@@ -468,8 +469,8 @@ class StaticAnalyzer {
         //     } else {
         //         // change the value we put as NaN earlier
         //         es6Scopes[1][scopeStack[scopeStackSize - 1]] = i;
-        //         this._closingScopesSorted[0].push(i);
-        //         this._closingScopesSorted[1].push(scopeStack[scopeStackSize - 1]);
+        //         this._closingEs6ScopesSorted[0].push(i);
+        //         this._closingEs6ScopesSorted[1].push(scopeStack[scopeStackSize - 1]);
         //
         //         scopeStackSize--;
         //         bracketStack.pop();
@@ -901,8 +902,8 @@ class StaticAnalyzer {
             } else {
                 // change the value we put as NaN earlier
                 es6Scopes[1][scopeStack[scopeStackSize - 1]] = scopeEnd;
-                this._closingScopesSorted[0].push(scopeEnd);
-                this._closingScopesSorted[1].push(scopeStack[scopeStackSize - 1]);
+                this._closingEs6ScopesSorted[0].push(scopeEnd);
+                this._closingEs6ScopesSorted[1].push(scopeStack[scopeStackSize - 1]);
 
                 // todo: this definitely needs major refactoring
                 scopeStackSize--;
@@ -1079,8 +1080,9 @@ class StaticAnalyzer {
                     continue;
                 }
 
-                // es5Scopes[0].push(es6Scopes[0][i]);
-                // es5Scopes[1].push(es6Scopes[1][i]);
+                es5Scopes[0].push(es6Scopes[0][i]);
+                es5Scopes[1].push(es6Scopes[1][i]);
+
                 es5Scopes[2].push(k);
                 allScopes.push([es6Scopes[0][i], k, 0]);
                 allScopes.push([es6Scopes[1][i], k, 1]);
@@ -1099,6 +1101,8 @@ class StaticAnalyzer {
                     scopeStack.push(allScopes[i][1]);
 
                 } else {
+                    this._closingEs5ScopesSorted[0].push(es5Scopes[allScopes[i][1]]);
+                    this._closingEs5ScopesSorted[1].push(allScopes[i][1]);
                     scopeStack.pop();
                 }
             }
@@ -2062,18 +2066,34 @@ class StaticAnalyzer {
         this.imports = imports;
     }
 
-    findScope(index) {
-        // make this more universal, keep maps for both opening and closing brackets, not just closing
-        // to make it easier to port for 'var's
-        const opening = binarySearchLowerBound(this._es6Scopes[0], index);
-        const closing = this._closingScopesSorted[1][binarySearchUpperBound(this._closingScopesSorted[0], index)];
+    findScope(index, scopeType = StaticAnalyzer.scopeTypes.es6) {
+
+        let opening = -1;
+        let closing = -1;
+
+        if (scopeType === StaticAnalyzer.scopeTypes.es6) {
+            opening = binarySearchLowerBound(this._es6Scopes[0], index);
+            closing = this._closingEs6ScopesSorted[1][binarySearchUpperBound(this._closingEs6ScopesSorted[0], index)];
+        } else {
+            opening = binarySearchLowerBound(this._es5Scopes[0], index);
+            closing = this._closingEs5ScopesSorted[1][binarySearchUpperBound(this._closingEs5ScopesSorted[0], index)];
+        }
+
         if (opening < 0 || closing < 0) {
-            return -1;
+            return 0;
         }
-        if (!this._scopeGraphFunctions) {
-            this._scopeGraphFunctions = getLCA(this._es6ScopeGraphData);
+
+        if (scopeType === StaticAnalyzer.scopeTypes.es6){
+            return this._es6ScopeGraph.lca(opening, closing);
         }
-        return this._scopeGraphFunctions.lca(opening, closing);
+        return this._es5ScopeGraph.lca(opening, closing);
+
+        // if (!this._scopeGraphFunctions) {
+        //     this._scopeGraphFunctions = getLCA(this._es6ScopeGraphData);
+        // }
+
+
+
     }
 
     findReferences(variable) {
