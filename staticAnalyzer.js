@@ -1469,7 +1469,7 @@ class StaticAnalyzer {
             return curCommentIndex;
         };
 
-        const analizeExport = (i, exportIndex) => {
+        const analyzeExport = (i, exportIndex) => {
             i += 6;
             const exportBeginning = i;
 
@@ -1792,7 +1792,7 @@ class StaticAnalyzer {
 
         for (let i = 0; i < exportBeginnings.length; i++) {
             curCommentIndex = NaN;
-            let currExports = analizeExport(exportBeginnings[i], i);
+            let currExports = analyzeExport(exportBeginnings[i], i);
             for (let j in currExports) {
                 exports[j] = exports[j].concat(currExports[j]);
             }
@@ -1815,7 +1815,7 @@ class StaticAnalyzer {
 
         let curCommentIndex = NaN;
 
-        const analizeImport = (i, exportIndex) => {
+        const analyzeImport = (i, exportIndex) => {
             i += 6;
             const importBeginning = i;
 
@@ -2057,7 +2057,7 @@ class StaticAnalyzer {
 
         for (let i = 0; i < importBeginnings.length; i++) {
             curCommentIndex = NaN;
-            let currExports = analizeImport(importBeginnings[i], i);
+            let currExports = analyzeImport(importBeginnings[i], i);
             for (let j in currExports) {
                 imports[j] = imports[j].concat(currExports[j]);
             }
