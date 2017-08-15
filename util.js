@@ -122,6 +122,7 @@ class Graph {
     }
 
     dfs(fcn, v = 0) {
+        fcn && fcn(v);
         for (let i = 0; i < this._graph[v].length; ++i) {
             const to = this._graph[v][i];
             if (to != p) {
