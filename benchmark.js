@@ -26,6 +26,10 @@ const runStuff = () => {
         res.push(`scopes analysis: ${Date.now() - t}`);
 
         t = Date.now();
+        a.findLetConstVar();
+        res.push(`let, const, var analysis: ${Date.now() - t}`);
+
+        t = Date.now();
         a.findExports();
         res.push(`export analysis: ${Date.now() - t}`);
 
