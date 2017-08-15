@@ -138,7 +138,7 @@ class StaticAnalyzer {
         this._closingEs5ScopesSorted = [[], []];
         this._closingEs6ScopesSorted = [[], []];
 
-        this._functionAndClassDeclarations = [[], []];
+        this._functionAndClassDeclarations = [[], [], []];
     }
 
     // analyzeCommentsAndStrings() {
@@ -764,6 +764,7 @@ class StaticAnalyzer {
                 scopeData[0] === StaticAnalyzer.scopeTypes.function)) {
                 this._functionAndClassDeclarations[0].push(fcnOrClassName);
                 this._functionAndClassDeclarations[1].push(j);
+                this._functionAndClassDeclarations[2].push(type);
             }
 
             return scopeData;
