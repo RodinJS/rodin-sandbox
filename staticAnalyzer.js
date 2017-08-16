@@ -882,6 +882,20 @@ class StaticAnalyzer {
 
             }
 
+            if (bracket === '}'.charCodeAt(0)) {
+                isOpening = false;
+                if (this._scopeData[scopeStart[scopeStack.length - 1]] &&
+                    this._scopeData[scopeStart[scopeStack.length - 1]][0] === StaticAnalyzer.scopeTypes.destruction) {
+                    scopeType = StaticAnalyzer.scopeTypes.destruction;
+                    this._scopeData[scopeStack[scopeStackSize - 1]] = [scopeType];
+                } else {
+                    j = this.skipNonCodeNEW(++j, cOBJ);
+                    if (this.source.charCodeAt(j) === '='.charCodeAt(0)) {
+                        scopeType = StaticAnalyzer.scopeTypes.destruction;
+                        this._scopeData[scopeStack[scopeStackSize - 1]] = [scopeType];
+                    }
+                }
+            }
 
             if (isOpening) {
                 bracketStack.push(bracket);
@@ -2297,7 +2311,7 @@ StaticAnalyzer.scopeTypes = {
     es6: 0b10000000000,
     singleStatement: 0b00100000000,
     expression: 0b00010000000,
-    /*class: 0b00000000001,*/
+    destruction: 0b11000000000,
     function: 0b00000000010,
     arrowFunction: 0b00000000100,
     for: 0b10000001000,
