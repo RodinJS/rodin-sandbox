@@ -2039,23 +2039,6 @@ class StaticAnalyzer {
         this.imports = imports;
     }
 
-    findLetConstVar() {
-        const ret = [];
-
-        const rx = new RegExp('(?:^|\\s|=|\\+|\\-|\\/|\\*|\\%|\\(|\\)|\\[|;|:|{|}|\\n|\\r|,|!|&|\\||\\^|\\?|>|<)('
-            + 'let|const|var'
-            + ')(?=\\s|$|=|\\+|\\.|\\-|\\/|\\*|\\%|\\(|\\)|\\[|\\]|;|:|{|}|\\n|\\r|,|!|&|\\||\\^|\\?|>|<)', 'gm');
-        let match;
-        const importBeginnings = [];
-        while ((match = rx.exec(this.source))) {
-            let curPos = match[0].indexOf(match[1]) + match.index;
-            if (this.isCommentOrString(curPos)) {
-                continue;
-            }
-            importBeginnings.push(curPos);
-        }
-    }
-
     findScope(index, scopeType = StaticAnalyzer.scopeTypes.es6) {
 
         let opening = -1;
@@ -2104,23 +2087,21 @@ class StaticAnalyzer {
             const tmp = [];
             // multivariable case
             if (this.source.charCodeAt(index) === ','.charCodeAt(0)) {
-                // araj gnal minchev handipel declaration end symbol
-
-                let beforeNewLine = false;
-                while (index > scopeStart) {
-                    index = this.skipNonCodeAndScopes(index, cOBJ, -1, true, true, false);
-                    const currCharCode = this.source.charCodeAt(index);
-                    tmp.push(String.fromCharCode(currCharCode));
-
-                    beforeNewLine = currCharCode === 10; // newline symbol
-
-                    index--;
-                }
-
-                console.log(originalIndex, tmp.reverse().join(''));
-
-                if (index === scopeStart)
-                    return null;
+                // let beforeNewLine = false;
+                // while (index > scopeStart) {
+                //     index = this.skipNonCodeAndScopes(index, cOBJ, -1, true, true, false);
+                //     const currCharCode = this.source.charCodeAt(index);
+                //     tmp.push(String.fromCharCode(currCharCode));
+                //
+                //     beforeNewLine = currCharCode === 10; // newline symbol
+                //
+                //     index--;
+                // }
+                //
+                // console.log(originalIndex, tmp.reverse().join(''));
+                //
+                // if (index === scopeStart)
+                //     return null;
             }
 
             let i = 0;

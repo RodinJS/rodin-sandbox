@@ -7,7 +7,7 @@ const runStuff = () => {
 
     // ajax.get('https://cdnjs.cloudflare.com/ajax/libs/three.js/86/three.module.js', {}, data => {
     ajax.get('tmp.js', {}, data => {
-    //     loadTHREEJS(data => {
+        // loadTHREEJS(data => {
         // loadJQUERY(data => {
         // loadD3(data => {
         // loadOtherJS(data => {
@@ -20,14 +20,6 @@ const runStuff = () => {
         t = Date.now();
         a.analyzeCommentsAndStrings();
         res.push(`comments and string analysis: ${Date.now() - t}`);
-
-        t = Date.now();
-        a.analyzeScopes();
-        res.push(`scopes analysis: ${Date.now() - t}`);
-
-        t = Date.now();
-        a.findLetConstVar();
-        res.push(`let, const, var analysis: ${Date.now() - t}`);
 
         t = Date.now();
         a.findExports();
