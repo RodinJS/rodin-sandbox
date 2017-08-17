@@ -137,6 +137,8 @@ class StaticAnalyzer {
 
         this._closingEs5ScopesSorted = [[], []];
         this._closingEs6ScopesSorted = [[], []];
+
+        this._functionAndClassDeclarations = [[], [], []];
     }
 
     // analyzeCommentsAndStrings() {
@@ -239,7 +241,7 @@ class StaticAnalyzer {
         const skipNonCode = (j) => {
             let resI = commentsAndStrings.length - 1;
             while (j >= 0 && (this.source.charCodeAt(j) <= 32 || /* || this.source.charCodeAt(j) === 10 || /!*this.source.charCodeAt(j) === 9 ||*!/*/
-                (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j))) {
+            (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j))) {
                 j--;
                 if (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j) {
                     j = commentsAndStrings[resI][0] - 1;
@@ -721,7 +723,8 @@ class StaticAnalyzer {
             if (type === 0) {
                 closingRoundBracket = j + 1;
                 [j, _] = this.skipBrackets(j);
-                openingRoundBracket = j + 1;
+                // todo: @gor this.skipBrackets returns the results with -1 offset, fix this
+                openingRoundBracket = ++j;
 
                 if (this._scopeData[scopeStack[scopeStackSize - 1]] &&
                     this._scopeData[scopeStack[scopeStackSize - 1]][0] === StaticAnalyzer.scopeTypes.class) {
@@ -732,13 +735,16 @@ class StaticAnalyzer {
 
 
             let tmpI = 0;
+            let fcnOrClassName;
 
-            while (tmpI++ < 2) {
-                j--;
+            while (tmpI < 2) {
+                // j--;
                 // [j, _] = this.skipNonCode(j, -1); // add curCommentIndex
-                j = this.skipNonCodeNEW(j, cOBJ, -1);
+                j = this.skipNonCodeNEW(--j, cOBJ, -1);
                 const nextWord = this.getWordFromIndex(j);
                 const cur = this.source.substring(nextWord[0], nextWord[1]);
+                if (tmpI === 0)
+                    fcnOrClassName = cur;
                 j = nextWord[0];
                 // const fcn = function(a,b,c){...}
                 if (type === 0 && es5Functions.indexOf(cur) !== -1) {
@@ -750,7 +756,17 @@ class StaticAnalyzer {
                     scopeData = [scopeType];
                     break;
                 }
+                tmpI++;
             }
+
+            if (tmpI > 0 &&
+                (scopeData[0] === StaticAnalyzer.scopeTypes.class ||
+                scopeData[0] === StaticAnalyzer.scopeTypes.function)) {
+                this._functionAndClassDeclarations[0].push(fcnOrClassName);
+                this._functionAndClassDeclarations[1].push(j);
+                this._functionAndClassDeclarations[2].push(type);
+            }
+
             return scopeData;
         };
 
@@ -866,6 +882,20 @@ class StaticAnalyzer {
 
             }
 
+            if (bracket === '}'.charCodeAt(0)) {
+                isOpening = false;
+                if (this._scopeData[scopeStart[scopeStack.length - 1]] &&
+                    this._scopeData[scopeStart[scopeStack.length - 1]][0] === StaticAnalyzer.scopeTypes.destruction) {
+                    scopeType = StaticAnalyzer.scopeTypes.destruction;
+                    this._scopeData[scopeStack[scopeStackSize - 1]] = [scopeType];
+                } else {
+                    j = this.skipNonCodeNEW(++j, cOBJ);
+                    if (this.source.charCodeAt(j) === '='.charCodeAt(0)) {
+                        scopeType = StaticAnalyzer.scopeTypes.destruction;
+                        this._scopeData[scopeStack[scopeStackSize - 1]] = [scopeType];
+                    }
+                }
+            }
 
             if (isOpening) {
                 bracketStack.push(bracket);
@@ -2056,7 +2086,7 @@ class StaticAnalyzer {
             return 0;
         }
 
-        if (scopeType === StaticAnalyzer.scopeTypes.es6){
+        if (scopeType === StaticAnalyzer.scopeTypes.es6) {
             return this._es6ScopeGraph.lca(opening, closing);
         }
         return this._es5ScopeMap[this._es5ScopeGraph.lca(opening, closing)];
@@ -2262,7 +2292,7 @@ StaticAnalyzer.scopeTypes = {
     es6: 0b10000000000,
     singleStatement: 0b00100000000,
     expression: 0b00010000000,
-    /*class: 0b00000000001,*/
+    destruction: 0b11000000000,
     function: 0b00000000010,
     arrowFunction: 0b00000000100,
     for: 0b10000001000,
