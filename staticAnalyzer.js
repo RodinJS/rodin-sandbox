@@ -1255,17 +1255,21 @@ class StaticAnalyzer {
         const isClosing = ['}'.charCodeAt(0), ')'.charCodeAt(0), ']'.charCodeAt(0)].indexOf(bracket) !== -1;
 
         if (!isOpening && !isClosing)
-            return [oldJ, curCommentIndex];
+            return oldJ;
 
         if (isOpening && !forward || isClosing && !backward)
-            return [oldJ, curCommentIndex];
+            return oldJ;
 
         if (bracket === '{'.charCodeAt(0)) {
-            curCommentIndex = NaN;
-            return [this._es6Scopes[1][this._es6Scopes[0].indexOf(j)], curCommentIndex];
+            if (params.hasOwnProperty('cci')) {
+                params.cci = NaN;
+            }
+            return this._es6Scopes[1][this._es6Scopes[0].indexOf(j)];
         } else if (bracket === '}'.charCodeAt(0)) {
-            curCommentIndex = NaN;
-            return [this._es6Scopes[0][this._es6Scopes[1].indexOf(j)] - 1, curCommentIndex];
+            if (params.hasOwnProperty('cci')) {
+                params.cci = NaN;
+            }
+            return this._es6Scopes[0][this._es6Scopes[1].indexOf(j)] - 1;
         }
 
         let reverseBracket;
@@ -1293,7 +1297,7 @@ class StaticAnalyzer {
                 stack--;
 
                 if (stack === 0)
-                    return [isOpening ? j : j - 1, curCommentIndex];
+                    return isOpening ? j : j - 1;
             }
 
             j += direction;
@@ -2092,6 +2096,27 @@ class StaticAnalyzer {
         return this._es5ScopeMap[this._es5ScopeGraph.lca(opening, closing)];
     }
 
+    analyzeFunctionParams() {
+        this._functionParams = [];
+        const n_scopes = this._scopeData.length;
+        let i = 0;
+        while (i < n_scopes) {
+            const scope_data = this._scopeData[i];
+            if(scope_data[1]) {
+                this._functionParams.push(scope_data[1])
+            }
+            i ++;
+        }
+    }
+
+    isFunctionParam(index) {
+          if(!this._functionParams) {
+              this.analyzeFunctionParams();
+          }
+
+          return binarySearch(this._functionParams, index) !== -1;
+    };
+
     findReferences(variable) {
         const rx = new RegExp('(?:^|\\s|=|\\+|\\-|\\/|\\*|\\%|\\(|\\)|\\[|;|:|{|}|\\n|\\r|,|!|&|\\||\\^|\\?|>|<)('
             + variable
@@ -2106,32 +2131,37 @@ class StaticAnalyzer {
 
         const getDeclarationType = (index, scope = this.findScope(index)) => {
             const originalIndex = index;
-            // todo: fix it when @serg will provide data
-            // if(insideFunctionParams) {
-            //     return isfunctionDefinition
-            // }
+            if(this.isFunctionParam(index)) {
+                return 'param';
+            }
 
             const scopeStart = scope === -1 ? 0 : this._es6Scopes[0][scope];
             index = this.skipNonCodeNEW(index - 1, cOBJ, -1);
 
-            const tmp = [];
             // multivariable case
             if (this.source.charCodeAt(index) === ','.charCodeAt(0)) {
-                // let beforeNewLine = false;
-                // while (index > scopeStart) {
-                //     index = this.skipNonCodeAndScopes(index, cOBJ, -1, true, true, false);
-                //     const currCharCode = this.source.charCodeAt(index);
-                //     tmp.push(String.fromCharCode(currCharCode));
-                //
-                //     beforeNewLine = currCharCode === 10; // newline symbol
-                //
-                //     index--;
-                // }
-                //
-                // console.log(originalIndex, tmp.reverse().join(''));
-                //
-                // if (index === scopeStart)
-                //     return null;
+                let beforeNewLine = false;
+
+                while (index > scopeStart) {
+                    index = this.skipNonCodeAndScopes(index, cOBJ, -1, true, true, false);
+                    const currCharCode = this.source.charCodeAt(index);
+
+                    if(currCharCode === ';'.charCodeAt(0)) {
+                        return null;
+                    }
+
+                    if(beforeNewLine) {
+                        // todo: eval check
+                    }
+
+                    beforeNewLine = currCharCode === 10; // newline symbol
+                    index--;
+                }
+
+                console.log(originalIndex, index, index === scopeStart, this.source.substr(index, 5));
+                if (index === scopeStart) {
+                    return null;
+                }
             }
 
             let i = 0;
@@ -2153,13 +2183,6 @@ class StaticAnalyzer {
             }
             return null;
         };
-
-        // we really need a stack only to be able to link variables from nested scopes to each other
-        // for import export purpuses we dont need this at all, we can just check if we are in a global scope
-        // or not, and proceed accordingly.
-        // const declarationScopeStack = [];
-        // so lets just go with the last variable
-        let lastDeclarationScope = null;
 
         const references = [];
         const scopes = [];
@@ -2186,22 +2209,6 @@ class StaticAnalyzer {
 
         for (let i = 0; i < references.length; i++) {
             // todo: get all updated references
-
-            // if (lastDeclarationScope !== null &&
-            //     lastDeclarationScope !== scope &&
-            //     this._scopeGraphFunctions.isParent(lastDeclarationScope, scope)) {
-            //     continue;
-            // }
-            // else {
-            //     lastDeclarationScope = null;
-            // }
-            //
-            // if (isDeclaration(index)) {
-            //     console.log(`Found declaration of ${variable} at ${index} scope ${scope}`);
-            //     // declarationScopeStack.push(scope);
-            //     lastDeclarationScope = scope;
-            // }
-            // matches.push(match.index);
         }
 
         console.table(reshapeObject({references, scopes, isDec, decType}));
