@@ -176,6 +176,8 @@ class StaticAnalyzer {
         this._closingEs6ScopesSorted = [[], []];
 
         this._functionAndClassDeclarations = [[], [], []];
+
+        this._destructions = [];
     }
 
     checkIfExpressionIsOver(index) {
@@ -956,9 +958,11 @@ class StaticAnalyzer {
                     this._scopeData[scopeStack[scopeStackSize - 1]] = [scopeType];
                 } else {
                     j = this.skipNonCodeNEW(++j, cOBJ);
+
                     if (this.source.charCodeAt(j) === '='.charCodeAt(0)) {
                         scopeType = StaticAnalyzer.scopeTypes.destruction;
                         this._scopeData[scopeStack[scopeStackSize - 1]] = [scopeType];
+                        this._destructions.push(i);
                     }
                 }
             }
@@ -1066,9 +1070,14 @@ class StaticAnalyzer {
                 if (cur === '('.charCodeAt(0) || cur === '['.charCodeAt(0)) {
                     bracketStack.push(cur);
                 } else if (cur === ')'.charCodeAt(0)) {
-                    popBracketStack('('.charCodeAt(0));
+                    popBracketStack(')'.charCodeAt(0));
                 } else if (cur === ']'.charCodeAt(0)) {
-                    popBracketStack('('.charCodeAt(0));
+                    popBracketStack(']'.charCodeAt(0));
+
+                    const j = this.skipNonCodeNEW(i + 1, cOBJ);
+                    if (this.source.charCodeAt(j) === '='.charCodeAt(0)) {
+                        this._destructions.push(i);
+                    }
                 }
 
 
@@ -2150,7 +2159,7 @@ class StaticAnalyzer {
                     }
 
                     if (beforeNewLine) {
-                        if(this.checkIfExpressionIsOver(index)) {
+                        if (this.checkIfExpressionIsOver(index)) {
                             return null;
                         }
                     }
