@@ -2124,6 +2124,26 @@ class StaticAnalyzer {
         return false;
     };
 
+    analyzeDestructionScopes() {
+        this._destructionScopes = [];
+
+        const n_destructions = this._destructions.length;
+        let i = 0;
+        while (i < n_destructions) {
+            let destructionEnd = this._destructions[i];
+            this._destructionScopes.push([this.skipBracketsNEW(destructionEnd, cOBJ, false, true), destructionEnd]);
+            i++;
+        }
+    }
+
+    getDestructionIndex(index) {
+        if(!this._destructionScopes) {
+            this.analyzeDestructionScopes()
+        }
+
+        return binarySearchIntervals(this._destructionScopes, index);
+    }
+
     findReferences(variable) {
         const rx = new RegExp('(?:^|\\s|=|\\+|\\-|\\/|\\*|\\%|\\(|\\)|\\[|;|:|{|}|\\n|\\r|,|!|&|\\||\\^|\\?|>|<)('
             + variable
@@ -2136,11 +2156,23 @@ class StaticAnalyzer {
         const declarationTypes = ['var', 'let', 'const', 'class', 'function', 'function*'];
         const isMultivariable = [true, true, true, false, false, false];
 
+        const references = [];
+        const scopes = [];
+        const isOverride = [];
+        const isDec = [];
+        const decType = [];
+        const declarationScopes = new Set();
+
         const getDeclarationType = (index, scope = this.findScope(index)) => {
             // debugger;
             const originalIndex = index;
             if (this.isFunctionParam(index)) {
                 return 'param';
+            }
+
+            const destructionIndex = this.getDestructionIndex(index);
+            if(destructionIndex !== -1) {
+                index = this._destructionScopes[destructionIndex][0];
             }
 
             const scopeStart = scope === -1 ? 0 : this._es6Scopes[0][scope];
@@ -2197,13 +2229,6 @@ class StaticAnalyzer {
         const getOverrideType = (index) => {
             return false;
         };
-
-        const references = [];
-        const scopes = [];
-        const isOverride = [];
-        const isDec = [];
-        const decType = [];
-        const declarationScopes = new Set();
 
         while ((match = rx.exec(this.source))) {
             const index = match[0].indexOf(variable) + match.index;
