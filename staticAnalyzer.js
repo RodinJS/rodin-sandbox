@@ -2110,6 +2110,7 @@ class StaticAnalyzer {
         const isMultivariable = [true, true, true, false, false, false];
 
         const getDeclarationType = (index, scope = this.findScope(index)) => {
+            debugger;
             const originalIndex = index;
             if (this.isFunctionParam(index)) {
                 return 'param';
@@ -2131,7 +2132,9 @@ class StaticAnalyzer {
                     }
 
                     if (beforeNewLine) {
-                        // todo: eval check
+                        if(this.checkIfExpressionIsOver(index)) {
+                            return null;
+                        }
                     }
 
                     beforeNewLine = currCharCode === 10; // newline symbol
@@ -2164,8 +2167,13 @@ class StaticAnalyzer {
             return null;
         };
 
+        const getOverrideType = (index) => {
+            return false;
+        };
+
         const references = [];
         const scopes = [];
+        const isOverride = [];
         const isDec = [];
         const decType = [];
         const declarationScopes = new Set();
@@ -2176,6 +2184,7 @@ class StaticAnalyzer {
                 const scope = this.findScope(index);
                 const declaraionType = getDeclarationType(index, scope);
                 scopes.push(scope);
+                isOverride.push(getOverrideType(index));
                 isDec.push(declaraionType !== null);
                 decType.push(declaraionType);
 
@@ -2191,7 +2200,7 @@ class StaticAnalyzer {
             // todo: get all updated references
         }
 
-        console.table(reshapeObject({references, scopes, isDec, decType}));
+        console.table(reshapeObject({references, scopes, isOverride, isDec, decType}));
     }
 
 
