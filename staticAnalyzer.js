@@ -1,6 +1,29 @@
 let _ = undefined;
 const cOBJ = {};
 
+const operatorChars = ['+', '-', '/', '*', '%', '>', '<', '&', '|', '^', '=', '?', ':', '~'].map(x => x.charCodeAt(0));
+const operatorWords = ['instanceof', 'delete', 'typeof', 'void', 'in'];
+
+const doEvalCheck = (expr, direction = -1) => {
+    try {
+        let a = 0, b = 0;
+        switch (direction) {
+            case -1:
+                eval(`{a${expr}}`);
+                break;
+            case 0:
+                eval(`{a${expr}b}`);
+                break;
+            case 1:
+                eval(`{${expr}b}`);
+        }
+
+    } catch (e) {
+        return false;
+    }
+    return true;
+};
+
 // const setConsole = () => {
 //     function flat(data) {
 //         return data.reduce((r, e) => Array.isArray(e) ? r = r.concat(flat(e)) : r.push(e) && r, [])
@@ -141,31 +164,70 @@ class StaticAnalyzer {
         this._functionAndClassDeclarations = [[], [], []];
     }
 
-    // analyzeCommentsAndStrings() {
-    // 	const needles = findNeedles(this.source, commentNeedles);
-    //
-    // 	//const [reducedSource, map] = reduce(this.source, needles);
-    // 	const reducedNeedles = findComments(this.source);
-    // 	this._commentsAndStrings = reducedNeedles.map(a => [map[a[0]], map[a[1]] || this.source.length]);
-    // 	this._commentsAndStringsAnalyzed = true;
-    // }
+    checkIfExpressionIsOver(index) {
+        // todo: tidy this up, a lot of code repetition
+        let a = index;
+        let strArr = [];
+        const skipParams = {cci: null};
+        a = this.skipNonCodeNEW(a, skipParams, -1);
+        if (this.source.charCodeAt(a) === '.'.charCodeAt(0) ||
+            this.source.charCodeAt(a) === '('.charCodeAt(0) ||
+            this.source.charCodeAt(a) === '['.charCodeAt(0)) {
+            return;
+        }
+        while (true) {
+            // debugger;
+            if (operatorChars.indexOf(this.source.charCodeAt(a)) === -1) {
+                let [s, e] = this.getWordFromIndex(a);
+                const subStr = this.source.substring(s, e);
+                if (operatorWords.indexOf(subStr) !== -1) {
+                    // str += subStr.reverse();
+                    strArr.push(...subStr.split('').reverse());
+                    a = s - 1;
+                } else {
+                    break;
+                }
+            }
+            // str += this.source.charAt(a);
+            strArr.push(this.source.charAt(a));
+            a = this.skipNonCodeNEW(a - 1, skipParams, -1);
+        }
+        // console.log(str);
+        let operatorStr = strArr.reverse().join('');
+        strArr = [];
+        // debugger;
+        if (doEvalCheck(operatorStr)) {
+            skipParams.cci = null;
+            a = this.skipNonCodeNEW(index, skipParams);
+            if (this.source.charCodeAt(a) === '.'.charCodeAt(0) ||
+                this.source.charCodeAt(a) === '('.charCodeAt(0) ||
+                this.source.charCodeAt(a) === '['.charCodeAt(0)) {
+                return;
+            }
+            while (true) {
+                if (operatorChars.indexOf(this.source.charCodeAt(a)) === -1) {
+                    let [s, e] = this.getWordFromIndex(a);
+                    const subStr = this.source.substring(s, e);
+                    if (operatorWords.indexOf(subStr) !== -1) {
+                        strArr.push(subStr);
+                        a = e;
+                    } else {
+                        break;
+                    }
+                }
+                // str += this.source.charAt(a);
+                strArr.push(this.source.charAt(a));
+                a = this.skipNonCodeNEW(a + 1, skipParams);
+            }
 
-    // analyzeScopes() {
-    //     const allNeedles = findNeedles(this.source, scopeNeedles);
-    //     const needles = [];
-    //     const length = allNeedles.length;
-    //
-    //     for (let i = 0; i < length; i++) {
-    //         if (!this.isCommentOrString(allNeedles[i][0])) {
-    //             needles.push(allNeedles[i]);
-    //         }
-    //     }
-    //
-    //     window.allNeedles = allNeedles;
-    //     window.needles = needles;
-    //
-    //     this.scopes = needles.map(a => a[0]);
-    // }
+            operatorStr += strArr.join('');
+            if (!doEvalCheck(operatorStr, 0)) {
+                // saveScope(bracketType, StaticAnalyzer.scopeTypes.singleStatement);
+                return true;
+            }
+        }
+        return false;
+    };
 
     analyzeCommentsAndStrings() {
         // const allNeedles = findNeedles(this.source, scopeNeedles);
@@ -704,8 +766,6 @@ class StaticAnalyzer {
         // const leftOperators = ['delete', 'typeof', 'void', '...', '++', '--', '~'];
         // const rightOperators = ['++', '--'];
 
-        const operatorChars = ['+', '-', '/', '*', '%', '>', '<', '&', '|', '^', '=', '?', ':', '~'].map(x => x.charCodeAt(0));
-        const operatorWords = ['instanceof', 'delete', 'typeof', 'void', 'in'];
 
         /**
          * checks if the there is a function or class at the given position
@@ -951,90 +1011,6 @@ class StaticAnalyzer {
             //es6Scopes.push([i, bracket]);
         };
 
-
-        const doEvalCheck = (expr, direction = -1) => {
-            try {
-                let a = 0, b = 0;
-                switch (direction) {
-                    case -1:
-                        eval(`{a${expr}}`);
-                        break;
-                    case 0:
-                        eval(`{a${expr}b}`);
-                        break;
-                    case 1:
-                        eval(`{${expr}b}`);
-                }
-
-            } catch (e) {
-                return false;
-            }
-            return true;
-        };
-
-        const checkIfExpressionIsOver = (bracketType) => {
-            // todo: tidy this up, a lot of code repetition
-            let a = i;
-            let strArr = [];
-            const skipParams = {cci: null};
-            a = this.skipNonCodeNEW(a, skipParams, -1);
-            if (this.source.charCodeAt(a) === '.'.charCodeAt(0) ||
-                this.source.charCodeAt(a) === '('.charCodeAt(0) ||
-                this.source.charCodeAt(a) === '['.charCodeAt(0)) {
-                return;
-            }
-            while (true) {
-                // debugger;
-                if (operatorChars.indexOf(this.source.charCodeAt(a)) === -1) {
-                    let [s, e] = this.getWordFromIndex(a);
-                    const subStr = this.source.substring(s, e);
-                    if (operatorWords.indexOf(subStr) !== -1) {
-                        // str += subStr.reverse();
-                        strArr.push(...subStr.split('').reverse());
-                        a = s - 1;
-                    } else {
-                        break;
-                    }
-                }
-                // str += this.source.charAt(a);
-                strArr.push(this.source.charAt(a));
-                a = this.skipNonCodeNEW(a - 1, skipParams, -1);
-            }
-            // console.log(str);
-            let operatorStr = strArr.reverse().join('');
-            strArr = [];
-            // debugger;
-            if (doEvalCheck(operatorStr)) {
-                skipParams.cci = null;
-                a = this.skipNonCodeNEW(i, skipParams);
-                if (this.source.charCodeAt(a) === '.'.charCodeAt(0) ||
-                    this.source.charCodeAt(a) === '('.charCodeAt(0) ||
-                    this.source.charCodeAt(a) === '['.charCodeAt(0)) {
-                    return;
-                }
-                while (true) {
-                    if (operatorChars.indexOf(this.source.charCodeAt(a)) === -1) {
-                        let [s, e] = this.getWordFromIndex(a);
-                        const subStr = this.source.substring(s, e);
-                        if (operatorWords.indexOf(subStr) !== -1) {
-                            strArr.push(subStr);
-                            a = e;
-                        } else {
-                            break;
-                        }
-                    }
-                    // str += this.source.charAt(a);
-                    strArr.push(this.source.charAt(a));
-                    a = this.skipNonCodeNEW(a + 1, skipParams);
-                }
-
-                operatorStr += strArr.join('');
-                if (!doEvalCheck(operatorStr, 0)) {
-                    saveScope(bracketType, StaticAnalyzer.scopeTypes.singleStatement);
-                }
-            }
-        };
-
         // open the global scope
         saveScope(StaticAnalyzer.globalScopeBracket, StaticAnalyzer.scopeTypes.es5);
 
@@ -1064,7 +1040,9 @@ class StaticAnalyzer {
                     if (cur === ';'.charCodeAt(0) || cur === ','.charCodeAt(0)) {
                         saveScope(-2, StaticAnalyzer.scopeTypes.expression);
                     } else if (cur === '\n'.charCodeAt(0)) {
-                        checkIfExpressionIsOver(-2);
+                        if (this.checkIfExpressionIsOver(i)) {
+                            saveScope(-2, StaticAnalyzer.scopeTypes.expression);
+                        }
                     }
                 }
 
@@ -1073,7 +1051,9 @@ class StaticAnalyzer {
                     if (cur === ';'.charCodeAt(0)) {
                         saveScope(-4, StaticAnalyzer.scopeTypes.singleStatement);
                     } else if (cur === '\n'.charCodeAt(0)) {
-                        checkIfExpressionIsOver(-4);
+                        if (this.checkIfExpressionIsOver(i)) {
+                            saveScope(-4, StaticAnalyzer.scopeTypes.singleStatement);
+                        }
                     }
                 }
 
@@ -2102,19 +2082,19 @@ class StaticAnalyzer {
         let i = 0;
         while (i < n_scopes) {
             const scope_data = this._scopeData[i];
-            if(scope_data[1]) {
+            if (scope_data[1]) {
                 this._functionParams.push(scope_data[1])
             }
-            i ++;
+            i++;
         }
     }
 
     isFunctionParam(index) {
-          if(!this._functionParams) {
-              this.analyzeFunctionParams();
-          }
+        if (!this._functionParams) {
+            this.analyzeFunctionParams();
+        }
 
-          return binarySearch(this._functionParams, index) !== -1;
+        return binarySearch(this._functionParams, index) !== -1;
     };
 
     findReferences(variable) {
@@ -2131,7 +2111,7 @@ class StaticAnalyzer {
 
         const getDeclarationType = (index, scope = this.findScope(index)) => {
             const originalIndex = index;
-            if(this.isFunctionParam(index)) {
+            if (this.isFunctionParam(index)) {
                 return 'param';
             }
 
@@ -2146,11 +2126,11 @@ class StaticAnalyzer {
                     index = this.skipNonCodeAndScopes(index, cOBJ, -1, true, true, false);
                     const currCharCode = this.source.charCodeAt(index);
 
-                    if(currCharCode === ';'.charCodeAt(0)) {
+                    if (currCharCode === ';'.charCodeAt(0)) {
                         return null;
                     }
 
-                    if(beforeNewLine) {
+                    if (beforeNewLine) {
                         // todo: eval check
                     }
 
