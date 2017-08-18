@@ -173,7 +173,7 @@ class StaticAnalyzer {
         if (this.source.charCodeAt(a) === '.'.charCodeAt(0) ||
             this.source.charCodeAt(a) === '('.charCodeAt(0) ||
             this.source.charCodeAt(a) === '['.charCodeAt(0)) {
-            return;
+            return false;
         }
         while (true) {
             // debugger;
@@ -202,7 +202,7 @@ class StaticAnalyzer {
             if (this.source.charCodeAt(a) === '.'.charCodeAt(0) ||
                 this.source.charCodeAt(a) === '('.charCodeAt(0) ||
                 this.source.charCodeAt(a) === '['.charCodeAt(0)) {
-                return;
+                return false;
             }
             while (true) {
                 if (operatorChars.indexOf(this.source.charCodeAt(a)) === -1) {
