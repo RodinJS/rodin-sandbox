@@ -54,7 +54,7 @@ const find = (source, needle, method = 'indexOf') => {
 const commentNeedles = ['//', '\n', '/*', '*/', '\'', '"', '`', '${', '}', '/'];
 const scopeNeedles = ['{', '}'];
 
-const binarySearch = (intervals, index, left = false) => {
+const binarySearchIntervals = (intervals, index, right = false) => {
     let low = 0;
     let high = intervals.length - 1;
     let mid = NaN;
@@ -65,18 +65,32 @@ const binarySearch = (intervals, index, left = false) => {
         else high = mid - 1;
     }
 
-    if (left)
+    if (right) {
         return low;
+    }
+
+    return -1;
+};
+
+const binarySearch = (array, index, left = false) => {
+    let low = 0;
+    let high = array.length - 1;
+    let mid = NaN;
+    while (low <= high) {
+        mid = Math.floor((low + high) / 2);
+        if (array[mid] === index) return mid;
+        else if (array[mid] < index) low = mid + 1;
+        else high = mid - 1;
+    }
+
+    if (left) {
+        return high;
+    }
 
     return -1;
 };
 
 const findComments = (source) => {
-    //(/\*([^*]|(\*+[^*/]))*\*+/)|(//.*)
-    //((?:\/\*(?:[^*]|(?:\*+[^*\/]))*\*+\/)|(?:\/\/.*))
-    //const commentRegex = /((?:\/\*(?:[^*]|(?:\*+[^*\/]))*\*+\/)|(?:\/\/.*))/gm;
-
-
     const commentRegex = /((?:\/\*(?:[^*]|(?:\*+[^*\/]))*\*+\/)|(?:\/\/.{0,})|(\'[^']{0,}[^\\]{0,1}\')|(\"[^"]{0,}[^\\]{0,1}\")|(\`.{0,}[^\\]{0,1}\$\{|\`\$\{)|(\}[^`]{0,}[^\\]{0,1}\`)|\/[^\/]{0,}[^\\]\/[gimX]{0,}(?=\s{0,}[;\,\)\=\+\-\.\n]|$))/gm;
     const res = [];
     // not efficient at all CHANGE THIS
@@ -176,7 +190,6 @@ class StaticAnalyzer {
             return false;
         }
         while (true) {
-            // debugger;
             if (operatorChars.indexOf(this.source.charCodeAt(a)) === -1) {
                 let [s, e] = this.getWordFromIndex(a);
                 const subStr = this.source.substring(s, e);
@@ -195,7 +208,6 @@ class StaticAnalyzer {
         // console.log(str);
         let operatorStr = strArr.reverse().join('');
         strArr = [];
-        // debugger;
         if (doEvalCheck(operatorStr)) {
             skipParams.cci = null;
             a = this.skipNonCodeNEW(index, skipParams);
@@ -695,12 +707,6 @@ class StaticAnalyzer {
             }
             i++;
         }
-
-        //console.log(commentsAndStrings);
-        //console.log(instances);
-        //window.instances = instances;
-
-        //return commentsAndStrings;
     }
 
     analyzeScopes() {
@@ -1138,21 +1144,21 @@ class StaticAnalyzer {
         // }
         // return false;
 
-        return binarySearch(this._commentsAndStrings, index) !== -1;
+        return binarySearchIntervals(this._commentsAndStrings, index) !== -1;
     }
 
     // todo: add a direction to this
-    skipNonCode(j, direction = 1, curCommentIndex = binarySearch(this._commentsAndStrings, j, true), skipComments = true, skipWhitespace = true, skipNewLine = true) {
+    skipNonCode(j, direction = 1, curCommentIndex = binarySearchIntervals(this._commentsAndStrings, j, true), skipComments = true, skipWhitespace = true, skipNewLine = true) {
         const oldJ = j;
         if (isNaN(curCommentIndex))
-            curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
+            curCommentIndex = binarySearchIntervals(this._commentsAndStrings, j, true);
 
         // todo: @sergi het es pah@ qnnarkel mihat
         if (curCommentIndex === true || curCommentIndex === false) {
             skipNewLine = skipWhitespace;
             skipWhitespace = skipComments;
             skipComments = curCommentIndex;
-            curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
+            curCommentIndex = binarySearchIntervals(this._commentsAndStrings, j, true);
         }
 
         while (j < this.source.length && j >= 0) {
@@ -1189,7 +1195,7 @@ class StaticAnalyzer {
         const oldJ = j;
         let curCommentIndex = params.cci;
         if (curCommentIndex !== 0 && !curCommentIndex) {
-            curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
+            curCommentIndex = binarySearchIntervals(this._commentsAndStrings, j, true);
         }
 
         while (j < this.source.length && j >= 0) {
@@ -1228,7 +1234,7 @@ class StaticAnalyzer {
 
         let curCommentIndex = params.cci;
         if (curCommentIndex !== 0 && !curCommentIndex) {
-            curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
+            curCommentIndex = binarySearchIntervals(this._commentsAndStrings, j, true);
         }
 
         const isOpening = ['{'.charCodeAt(0), '('.charCodeAt(0), '['.charCodeAt(0)].indexOf(bracket) !== -1;
@@ -1294,14 +1300,14 @@ class StaticAnalyzer {
         return oldJ;
     };
 
-    skipBrackets(j, curCommentIndex = binarySearch(this._commentsAndStrings, j, true), forward = true, backward = true) {
+    skipBrackets(j, curCommentIndex = binarySearchIntervals(this._commentsAndStrings, j, true), forward = true, backward = true) {
         let oldJ = j;
         const bracket = this.source.charCodeAt(j);
 
         if (curCommentIndex === true || curCommentIndex === false) {
             backward = forward;
             forward = curCommentIndex;
-            curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
+            curCommentIndex = binarySearchIntervals(this._commentsAndStrings, j, true);
         }
 
         const isOpening = ['{'.charCodeAt(0), '('.charCodeAt(0), '['.charCodeAt(0)].indexOf(bracket) !== -1;
@@ -1394,7 +1400,7 @@ class StaticAnalyzer {
     }
 
     nextString(j) {
-        let curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
+        let curCommentIndex = binarySearchIntervals(this._commentsAndStrings, j, true);
 
         while (j < this.source.length) {
             if (curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
@@ -1432,7 +1438,7 @@ class StaticAnalyzer {
         let curCommentIndex = NaN;
 
         const nextString = (j) => {
-            curCommentIndex = binarySearch(this._commentsAndStrings, j, true);
+            curCommentIndex = binarySearchIntervals(this._commentsAndStrings, j, true);
 
             while (j < this.source.length) {
                 if (curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
@@ -2077,13 +2083,16 @@ class StaticAnalyzer {
     }
 
     analyzeFunctionParams() {
-        this._functionParams = [];
+        this._functionParams = [[],[]];
         const n_scopes = this._scopeData.length;
         let i = 0;
+
+        // opening brackets must be sorted
         while (i < n_scopes) {
             const scope_data = this._scopeData[i];
             if (scope_data[1]) {
-                this._functionParams.push(scope_data[1])
+                this._functionParams[0].push(scope_data[1][0]);
+                this._functionParams[1].push(scope_data[1][1]);
             }
             i++;
         }
@@ -2094,7 +2103,16 @@ class StaticAnalyzer {
             this.analyzeFunctionParams();
         }
 
-        return binarySearch(this._functionParams, index) !== -1;
+        let leftmostOpeningIndex = binarySearch(this._functionParams[0], index, true);
+
+        do {
+            if(this._functionParams[0][leftmostOpeningIndex] <= index && index <= this._functionParams[1][leftmostOpeningIndex]) {
+                return true;
+            }
+            leftmostOpeningIndex --;
+        } while (leftmostOpeningIndex >= 0);
+
+        return false;
     };
 
     findReferences(variable) {
@@ -2110,7 +2128,7 @@ class StaticAnalyzer {
         const isMultivariable = [true, true, true, false, false, false];
 
         const getDeclarationType = (index, scope = this.findScope(index)) => {
-            debugger;
+            // debugger;
             const originalIndex = index;
             if (this.isFunctionParam(index)) {
                 return 'param';
