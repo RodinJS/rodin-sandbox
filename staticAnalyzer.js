@@ -1,7 +1,7 @@
 let _ = undefined;
 const cOBJ = {};
 
-const operatorChars = ['+', '-', '/', '*', '%', '>', '<', '&', '|', '^', '=', '?', ':', '~'].map(x => x.charCodeAt(0));
+const operatorChars = ['+', '-', '/', '*', '%', '>', '<', '&', '|', '^', '=', '?', ':', '~', '\n'].map(x => x.charCodeAt(0));
 const operatorWords = ['instanceof', 'delete', 'typeof', 'void', 'in'];
 
 const doEvalCheck = (expr, direction = -1) => {
@@ -317,7 +317,7 @@ class StaticAnalyzer {
         const skipNonCode = (j) => {
             let resI = commentsAndStrings.length - 1;
             while (j >= 0 && (this.source.charCodeAt(j) <= 32 || /* || this.source.charCodeAt(j) === 10 || /!*this.source.charCodeAt(j) === 9 ||*!/*/
-            (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j))) {
+                (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j))) {
                 j--;
                 if (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j) {
                     j = commentsAndStrings[resI][0] - 1;
@@ -829,7 +829,7 @@ class StaticAnalyzer {
 
             if (tmpI > 0 &&
                 (scopeData[0] === StaticAnalyzer.scopeTypes.class ||
-                scopeData[0] === StaticAnalyzer.scopeTypes.function)) {
+                    scopeData[0] === StaticAnalyzer.scopeTypes.function)) {
                 this._functionAndClassDeclarations[0].push(fcnOrClassName);
                 this._functionAndClassDeclarations[1].push(j);
                 this._functionAndClassDeclarations[2].push(type);
@@ -2092,7 +2092,7 @@ class StaticAnalyzer {
     }
 
     analyzeFunctionParams() {
-        this._functionParams = [[],[]];
+        this._functionParams = [[], []];
         const n_scopes = this._scopeData.length;
         let i = 0;
 
@@ -2115,10 +2115,10 @@ class StaticAnalyzer {
         let leftmostOpeningIndex = binarySearch(this._functionParams[0], index, true);
 
         do {
-            if(this._functionParams[0][leftmostOpeningIndex] <= index && index <= this._functionParams[1][leftmostOpeningIndex]) {
+            if (this._functionParams[0][leftmostOpeningIndex] <= index && index <= this._functionParams[1][leftmostOpeningIndex]) {
                 return true;
             }
-            leftmostOpeningIndex --;
+            leftmostOpeningIndex--;
         } while (leftmostOpeningIndex >= 0);
 
         return false;
@@ -2137,7 +2137,7 @@ class StaticAnalyzer {
     }
 
     getDestructionIndex(index) {
-        if(!this._destructionScopes) {
+        if (!this._destructionScopes) {
             this.analyzeDestructionScopes()
         }
 
@@ -2171,7 +2171,11 @@ class StaticAnalyzer {
             }
 
             const destructionIndex = this.getDestructionIndex(index);
-            if(destructionIndex !== -1) {
+            const endOfCurrentDefinition = destructionIndex !== -1 ? this._destructionScopes[destructionIndex][1] : this.getWordFromIndex(index)[1];
+            const endIndex = this.skipNonCodeNEW(endOfCurrentDefinition, cOBJ);
+            isOverride.push(this.source.charCodeAt(endIndex) === '='.charCodeAt(0));
+
+            if (destructionIndex !== -1) {
                 index = this._destructionScopes[destructionIndex][0];
             }
 
@@ -2179,28 +2183,34 @@ class StaticAnalyzer {
             index = this.skipNonCodeNEW(index - 1, cOBJ, -1);
 
             // multivariable case
-            if (this.source.charCodeAt(index) === ','.charCodeAt(0)) {
+            if (this.source.charCodeAt(index) === 44 /* ','.charCodeAt(0) */) {
                 let beforeNewLine = false;
 
                 while (index > scopeStart) {
-                    index = this.skipNonCodeAndScopes(index, cOBJ, -1, true, true, false);
                     const currCharCode = this.source.charCodeAt(index);
 
-                    if (currCharCode === ';'.charCodeAt(0)) {
+                    if (currCharCode === 59 /* ';'.charCodeAt(0) */) {
                         return null;
                     }
 
-                    if (beforeNewLine) {
-                        if (this.checkIfExpressionIsOver(index)) {
-                            return null;
+                    if (currCharCode === 10 && this.checkIfExpressionIsOver(index)) {
+                        return null;
+                    }
+
+                    let [start, end] = this.getWordFromIndex(index);
+                    if (!isNaN(start) && !isNaN(end)) {
+                        const word = this.source.substring(start, end);
+                        if (declarationTypes.indexOf(word) !== -1) {
+                            return word;
                         }
+
+                        index = start;
                     }
 
                     beforeNewLine = currCharCode === 10; // newline symbol
-                    index--;
+                    index = this.skipNonCodeAndScopes(--index, cOBJ, -1, true, true, false);
                 }
 
-                console.log(originalIndex, index, index === scopeStart, this.source.substr(index, 5));
                 if (index === scopeStart) {
                     return null;
                 }
@@ -2226,17 +2236,12 @@ class StaticAnalyzer {
             return null;
         };
 
-        const getOverrideType = (index) => {
-            return false;
-        };
-
         while ((match = rx.exec(this.source))) {
             const index = match[0].indexOf(variable) + match.index;
             if (!this.isCommentOrString(index)) {
                 const scope = this.findScope(index);
                 const declaraionType = getDeclarationType(index, scope);
                 scopes.push(scope);
-                isOverride.push(getOverrideType(index));
                 isDec.push(declaraionType !== null);
                 decType.push(declaraionType);
 
@@ -2247,6 +2252,7 @@ class StaticAnalyzer {
                 references.push(index);
             }
         }
+
 
         for (let i = 0; i < references.length; i++) {
             // todo: get all updated references
