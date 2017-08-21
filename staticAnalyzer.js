@@ -2167,13 +2167,14 @@ class StaticAnalyzer {
             // debugger;
             const originalIndex = index;
             if (this.isFunctionParam(index)) {
+                isOverride.push(false);
                 return 'param';
             }
 
             const destructionIndex = this.getDestructionIndex(index);
             const endOfCurrentDefinition = destructionIndex !== -1 ? this._destructionScopes[destructionIndex][1] : this.getWordFromIndex(index)[1];
             const endIndex = this.skipNonCodeNEW(endOfCurrentDefinition, cOBJ);
-            isOverride.push(this.source.charCodeAt(endIndex) === '='.charCodeAt(0));
+            isOverride.push(this.source.charCodeAt(endIndex) === 61 /* '='.charCodeAt(0) */);
 
             if (destructionIndex !== -1) {
                 index = this._destructionScopes[destructionIndex][0];
@@ -2236,10 +2237,14 @@ class StaticAnalyzer {
             return null;
         };
 
+        const scopesToIgnore = new Int8Array(this._es6Scopes[0].length);
+
         while ((match = rx.exec(this.source))) {
             const index = match[0].indexOf(variable) + match.index;
             if (!this.isCommentOrString(index)) {
                 const scope = this.findScope(index);
+                if(scopesToIgnore[scope]) continue;
+
                 const declaraionType = getDeclarationType(index, scope);
                 scopes.push(scope);
                 isDec.push(declaraionType !== null);
@@ -2250,9 +2255,14 @@ class StaticAnalyzer {
                 }
 
                 references.push(index);
+
+                if(scope !== 0 && isOverride[isOverride.length - 1]) {
+                    this._es6ScopeGraph.dfs(scope => {
+                        scopesToIgnore[scope] = 1
+                    }, scope);
+                }
             }
         }
-
 
         for (let i = 0; i < references.length; i++) {
             // todo: get all updated references

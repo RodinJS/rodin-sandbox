@@ -124,10 +124,7 @@ class Graph {
     dfs(fcn, v = 0) {
         fcn && fcn(v);
         for (let i = 0; i < this._graph[v].length; ++i) {
-            const to = this._graph[v][i];
-            if (to != p) {
-                this.dfs(fcn, v);
-            }
+            this.dfs(fcn, this._graph[v][i]);
         }
     }
 }
@@ -161,7 +158,7 @@ const getLCA = (graph) => {
         }
         for (let i = 0; i < graph[v].length; ++i) {
             const to = graph[v][i];
-            if (to != p) {
+            if (to !== p) {
                 dfs(to, v);
             }
         }
