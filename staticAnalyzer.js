@@ -1897,6 +1897,10 @@ class StaticAnalyzer {
             return true;
         }
 
+        if(this.isSubstringInArray(skippedIndex, unaryOperators)) {
+            return true;
+        }
+
         skippedIndex = this.skipNonCodeNEW(index - 1, cOBJ, -1);
         const substr = this.source.substr(skippedIndex - 2, 2);
         return substr === '++' || substr === '--';
