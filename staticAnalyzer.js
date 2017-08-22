@@ -3,6 +3,7 @@ const cOBJ = {};
 
 const operatorChars = ['+', '-', '/', '*', '%', '>', '<', '&', '|', '^', '=', '?', ':', '~', '\n'].map(x => x.charCodeAt(0));
 const operatorWords = ['instanceof', 'delete', 'typeof', 'void', 'in'];
+const overrideTypes = ['=', '+=', '-=', '*=', '/=', '%=', '&=', '^=', '|=', '**=', '>>=', '<<=', '>>>='];
 
 const doEvalCheck = (expr, direction = -1) => {
     try {
@@ -2154,27 +2155,50 @@ class StaticAnalyzer {
         // might be a bug if there is a = somethingsomethingfunction* x, we will mistake this for a definition
         // probably need to check the other side too
         const declarationTypes = ['var', 'let', 'const', 'class', 'function', 'function*'];
-        const isMultivariable = [true, true, true, false, false, false];
+        const declarationTypeScopes = [
+            StaticAnalyzer.scopeTypes.es5,
+            StaticAnalyzer.scopeTypes.es6,
+            StaticAnalyzer.scopeTypes.es6,
+            StaticAnalyzer.scopeTypes.es6,
+            StaticAnalyzer.scopeTypes.es5,
+            StaticAnalyzer.scopeTypes.es6
+        ];
 
-        const references = [];
-        const scopes = [];
-        const isOverride = [];
-        const isDec = [];
-        const decType = [];
-        const declarationScopes = new Set();
+        const checkOverride = index => {
+            index = this.skipNonCodeNEW(index, cOBJ);
 
-        const getDeclarationType = (index, scope = this.findScope(index)) => {
-            // debugger;
-            const originalIndex = index;
+            console.log(index);
+
+            let i = 0;
+            let curLength = 0;
+            const len = overrideTypes.length;
+            let cur = '';
+
+            while (i < len) {
+                if (curLength !== overrideTypes[i].length) {
+                    curLength = overrideTypes[i].length;
+                    cur = this.source.substr(index, curLength);
+                }
+
+                if (cur === overrideTypes[i]) {
+                    return true;
+                }
+
+                i++;
+            }
+
+            return false;
+        };
+
+        const getDeclarationType = (index, scope = this.findScope(index), isOverride) => {
             if (this.isFunctionParam(index)) {
-                isOverride.push(false);
+                isOverride.value = false;
                 return 'param';
             }
 
             const destructionIndex = this.getDestructionIndex(index);
-            const endOfCurrentDefinition = destructionIndex !== -1 ? this._destructionScopes[destructionIndex][1] : this.getWordFromIndex(index)[1];
-            const endIndex = this.skipNonCodeNEW(endOfCurrentDefinition, cOBJ);
-            isOverride.push(this.source.charCodeAt(endIndex) === 61 /* '='.charCodeAt(0) */);
+            const endOfReference = destructionIndex !== -1 ? this._destructionScopes[destructionIndex][1] + 1: this.getWordFromIndex(index)[1];
+            isOverride.value = checkOverride(endOfReference);
 
             if (destructionIndex !== -1) {
                 index = this._destructionScopes[destructionIndex][0];
@@ -2208,7 +2232,7 @@ class StaticAnalyzer {
                         index = start;
                     }
 
-                    beforeNewLine = currCharCode === 10; // newline symbol
+                    beforeNewLine = currCharCode === 10; // '\n'.charCodeAt(0)
                     index = this.skipNonCodeAndScopes(--index, cOBJ, -1, true, true, false);
                 }
 
@@ -2237,38 +2261,36 @@ class StaticAnalyzer {
             return null;
         };
 
-        const scopesToIgnore = new Int8Array(this._es6Scopes[0].length);
+        const references = [];
+        const isOverride = {value: false};
 
+        const scopesToIgnore = new Int8Array(this._es6Scopes[0].length);
         while ((match = rx.exec(this.source))) {
             const index = match[0].indexOf(variable) + match.index;
             if (!this.isCommentOrString(index)) {
-                const scope = this.findScope(index);
-                if(scopesToIgnore[scope]) continue;
+                const declaration = getDeclarationType(index, this.findScope(index), isOverride);
+                const scopeType = declarationTypeScopes[declarationTypes.indexOf(declaration)];
+                const scope = this.findScope(index, scopeType);
+                references.push({index, isOverride: isOverride.value, declaration, scope, scopeType})
 
-                const declaraionType = getDeclarationType(index, scope);
-                scopes.push(scope);
-                isDec.push(declaraionType !== null);
-                decType.push(declaraionType);
-
-                if (declaraionType) {
-                    declarationScopes.add(scope);
-                }
-
-                references.push(index);
-
-                if(scope !== 0 && isOverride[isOverride.length - 1]) {
+                if(declaration && scope !== 0) {
                     this._es6ScopeGraph.dfs(scope => {
-                        scopesToIgnore[scope] = 1
+                        scopesToIgnore[scope] = 1;
                     }, scope);
                 }
             }
         }
 
+        const ret = [];
         for (let i = 0; i < references.length; i++) {
-            // todo: get all updated references
+            const ref = references[i];
+            if(scopesToIgnore[ref.scope])
+                continue;
+
+            ret.push(ref);
         }
 
-        console.table(reshapeObject({references, scopes, isOverride, isDec, decType}));
+        console.table(references);
     }
 
 
