@@ -3,7 +3,7 @@ const cOBJ = {};
 
 const operatorChars = ['+', '-', '/', '*', '%', '>', '<', '&', '|', '^', '=', '?', ':', '~', '\n'].map(x => x.charCodeAt(0));
 const operatorWords = ['instanceof', 'delete', 'typeof', 'void', 'in'];
-const overrideTypes = ['=', '+=', '-=', '*=', '/=', '%=', '&=', '^=', '|=', '**=', '>>=', '<<=', '>>>='];
+const assignmentTypes = ['=', '+=', '-=', '*=', '/=', '%=', '&=', '^=', '|=', '**=', '>>=', '<<=', '>>>='];
 
 const doEvalCheck = (expr, direction = -1) => {
     try {
@@ -2171,16 +2171,16 @@ class StaticAnalyzer {
 
             let i = 0;
             let curLength = 0;
-            const len = overrideTypes.length;
+            const len = assignmentTypes.length;
             let cur = '';
 
             while (i < len) {
-                if (curLength !== overrideTypes[i].length) {
-                    curLength = overrideTypes[i].length;
+                if (curLength !== assignmentTypes[i].length) {
+                    curLength = assignmentTypes[i].length;
                     cur = this.source.substr(index, curLength);
                 }
 
-                if (cur === overrideTypes[i]) {
+                if (cur === assignmentTypes[i]) {
                     return true;
                 }
 
