@@ -1510,7 +1510,7 @@ class StaticAnalyzer {
                         if (this.source.substr(i, 4) === 'from') {
                             i += 4;
                             const url = this._commentsAndStrings[nextString(i)];
-                            memory.from = this.source.substring(url[0], url[1]);
+                            memory.from = this.source.substring(url[0] + 1, url[1] - 1);
                         }
 
                         state = states.end;
@@ -1670,7 +1670,7 @@ class StaticAnalyzer {
                         if (this.source.substr(i, 4) === 'from') {
                             i += 4;
                             const url = this._commentsAndStrings[this.nextString(i)];
-                            memory.from = this.source.substring(url[0], url[1]);
+                            memory.from = this.source.substring(url[0] + 1, url[1] - 1);
                             state = states.end;
                             break;
                         }
@@ -2061,7 +2061,7 @@ class StaticAnalyzer {
     }
 
     visualizeExports() {
-        console.table(reshapeObject(this.imports))
+        console.table(reshapeObject(this.exports))
     }
 
     visualizeImports() {
