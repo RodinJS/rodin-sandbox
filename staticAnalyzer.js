@@ -1561,10 +1561,11 @@ class StaticAnalyzer {
         let match;
         const importBeginnings = [];
         while ((match = rx.exec(this.source))) {
-            let curPos = match[0].indexOf('import') + match.index;
-            if (this.isCommentOrString(curPos)) {
+            let curPos = match[0].indexOf(match[1]) + match.index;
+            if (this.isCommentOrString(curPos) || this.findScope(curPos) !== 0) {
                 continue;
             }
+
             importBeginnings.push(curPos);
         }
 
@@ -1734,7 +1735,7 @@ class StaticAnalyzer {
                      * IMPORT TYPE Default
                      */
                     case states.default.anything:
-                        i -= 1;
+                        i -= 2;
                         state = states.default.var;
                         break;
 
@@ -1783,7 +1784,11 @@ class StaticAnalyzer {
                             break;
                         }
 
-                        memory.currVar[memory.currVarLength++] = currChar;
+                        memory.currVar[0] = 'a';
+                        memory.currVar[1] = 'l';
+                        memory.currVar[2] = 'l';
+                        memory.currVarLength = 3;
+                        memory.currLabel[memory.currLabelLength++] = currChar;
                         break;
 
                     /**
@@ -2019,9 +2024,8 @@ class StaticAnalyzer {
             ret.push(ref);
         }
 
-        console.table(ret);
+        return ret;
     }
-
 
     // helper functions
 
