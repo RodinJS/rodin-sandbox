@@ -186,18 +186,15 @@ class StaticAnalyzer {
                 let [s, e] = this.getWordFromIndex(a);
                 const subStr = this.source.substring(s, e);
                 if (operatorWords.indexOf(subStr) !== -1) {
-                    // str += subStr.reverse();
                     strArr.push(...subStr.split('').reverse());
                     a = s - 1;
                 } else {
                     break;
                 }
             }
-            // str += this.source.charAt(a);
             strArr.push(this.source.charAt(a));
             a = this.skipNonCodeNEW(a - 1, skipParams, -1);
         }
-        // console.log(str);
         let operatorStr = strArr.reverse().join('');
         strArr = [];
         if (doEvalCheck(operatorStr)) {
@@ -219,14 +216,12 @@ class StaticAnalyzer {
                         break;
                     }
                 }
-                // str += this.source.charAt(a);
                 strArr.push(this.source.charAt(a));
                 a = this.skipNonCodeNEW(a + 1, skipParams);
             }
 
             operatorStr += strArr.join('');
             if (!doEvalCheck(operatorStr, 0)) {
-                // saveScope(bracketType, StaticAnalyzer.scopeTypes.singleStatement);
                 return true;
             }
         }
@@ -238,7 +233,6 @@ class StaticAnalyzer {
         const commentAndStringTypes = [];
         const instances = [];
         const es6Scopes = [[], []];
-        //const es5Scopes = [[], []];
 
         const scopeGraph = [];
 
@@ -556,8 +550,8 @@ class StaticAnalyzer {
             // only need to do this for functions, classes dont have ()
             if (type === 0) {
                 closingRoundBracket = j + 1;
-                [j, _] = this.skipBrackets(j);
-                // todo: @gor this.skipBrackets returns the results with -1 offset, fix this
+                // [j, _] = this.skipBrackets(j);
+                j = this.skipBracketsNEW(j, cOBJ);
                 openingRoundBracket = ++j;
 
                 if (this._scopeData[scopeStack[scopeStackSize - 1]] &&
@@ -609,7 +603,6 @@ class StaticAnalyzer {
             let scopeStart = i;
             let scopeEnd = i;
             let j = i;
-            let cci = 0;
             const skipParams = {cci: null};
             let c = null;
             // todo: make a debug flag for these things
@@ -626,9 +619,7 @@ class StaticAnalyzer {
 
                     break;
                 case StaticAnalyzer.scopeTypes.arrowFunction:
-                    // debugger;
                     i = this.skipNonCodeNEW(i + 2, cOBJ);
-                    // scopeStart = i;
                     curCommentIndex.cci = null;
                     c = j - 1;
                     c = this.skipNonCodeNEW(c, skipParams, -1); // add curCommentIndex
@@ -643,7 +634,7 @@ class StaticAnalyzer {
                         openingRoundBracket = c;
                     } else {
                         // (a,b,c)=>
-                        [c, cci] = this.skipBrackets(c, cci); //  add curCommentIndex
+                        c = this.skipBracketsNEW(c, skipParams);
                         openingRoundBracket = c + 1;
                     }
                     scopeStart = openingRoundBracket;
@@ -670,7 +661,7 @@ class StaticAnalyzer {
                     isOpening = true;
                     scopeStart = i;
                     i = this.skipNonCodeNEW(i + 3, skipParams);
-                    [i, _] = this.skipBrackets(i, skipParams.cci);
+                    i = this.skipBracketsNEW(i, skipParams);
                     i = this.skipNonCodeNEW(++i, skipParams);
 
                     // i++;
@@ -889,44 +880,6 @@ class StaticAnalyzer {
         return binarySearchIntervals(this._commentsAndStrings, index) !== -1;
     }
 
-    // todo: add a direction to this
-    skipNonCode(j, direction = 1, curCommentIndex = binarySearchIntervals(this._commentsAndStrings, j, true), skipComments = true, skipWhitespace = true, skipNewLine = true) {
-        const oldJ = j;
-        if (isNaN(curCommentIndex))
-            curCommentIndex = binarySearchIntervals(this._commentsAndStrings, j, true);
-
-        // todo: @sergi het es pah@ qnnarkel mihat
-        if (curCommentIndex === true || curCommentIndex === false) {
-            skipNewLine = skipWhitespace;
-            skipWhitespace = skipComments;
-            skipComments = curCommentIndex;
-            curCommentIndex = binarySearchIntervals(this._commentsAndStrings, j, true);
-        }
-
-        while (j < this.source.length && j >= 0) {
-            if (skipComments && curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
-                this._commentsAndStrings[curCommentIndex][0] <= j && j <= this._commentsAndStrings[curCommentIndex][1]) {
-
-                j = this._commentsAndStrings[curCommentIndex][direction === 1 ? 1 : 0];
-                if (direction === -1) {
-                    j--;
-                }
-
-                curCommentIndex += direction;
-                continue;
-            }
-
-            if ((skipNewLine && this.source.charCodeAt(j) === 10) || (skipWhitespace && this.source.charCodeAt(j) <= 32 && this.source.charCodeAt(j) !== 10)) {
-                j += direction;
-                continue;
-            }
-
-            break;
-        }
-
-        return [j, curCommentIndex, oldJ !== j];
-    };
-
     skipNonCodeNEW(j, params, direction = 1, skipComments = true, skipWhitespace = true, skipNewLine = true) {
         const oldJ = j;
         let curCommentIndex = params.cci;
@@ -1036,67 +989,6 @@ class StaticAnalyzer {
         return oldJ;
     };
 
-    skipBrackets(j, curCommentIndex = binarySearchIntervals(this._commentsAndStrings, j, true), forward = true, backward = true) {
-        let oldJ = j;
-        const bracket = this.source.charCodeAt(j);
-
-        if (curCommentIndex === true || curCommentIndex === false) {
-            backward = forward;
-            forward = curCommentIndex;
-            curCommentIndex = binarySearchIntervals(this._commentsAndStrings, j, true);
-        }
-
-        const isOpening = ['{'.charCodeAt(0), '('.charCodeAt(0), '['.charCodeAt(0)].indexOf(bracket) !== -1;
-        const isClosing = ['}'.charCodeAt(0), ')'.charCodeAt(0), ']'.charCodeAt(0)].indexOf(bracket) !== -1;
-
-        if (!isOpening && !isClosing)
-            return [oldJ, curCommentIndex];
-
-        if (isOpening && !forward || isClosing && !backward)
-            return [oldJ, curCommentIndex];
-
-        if (bracket === '{'.charCodeAt(0)) {
-            curCommentIndex = NaN;
-            return [this._es6Scopes[1][this._es6Scopes[0].indexOf(j)], curCommentIndex];
-        } else if (bracket === '}'.charCodeAt(0)) {
-            curCommentIndex = NaN;
-            return [this._es6Scopes[0][this._es6Scopes[1].indexOf(j)] - 1, curCommentIndex];
-        }
-
-        let reverseBracket;
-        if (bracket === '('.charCodeAt(0))
-            reverseBracket = ')'.charCodeAt(0);
-
-        if (bracket === ')'.charCodeAt(0))
-            reverseBracket = '('.charCodeAt(0);
-
-        if (bracket === '['.charCodeAt(0))
-            reverseBracket = ']'.charCodeAt(0);
-
-        if (bracket === ']'.charCodeAt(0))
-            reverseBracket = '['.charCodeAt(0);
-
-        let stack = 1;
-        const direction = isOpening ? 1 : -1;
-        j += direction;
-        while (j < this.source.length && j >= 0) {
-            [j, curCommentIndex] = this.skipNonCode(j, direction);
-
-            if (bracket === this.source.charCodeAt(j)) {
-                stack++;
-            } else if (reverseBracket === this.source.charCodeAt(j)) {
-                stack--;
-
-                if (stack === 0)
-                    return [isOpening ? j : j - 1, curCommentIndex];
-            }
-
-            j += direction;
-        }
-
-        return [oldJ, curCommentIndex];
-    };
-
     skipNonCodeAndScopes(j, params, direction = 1, skipComments = true, skipWhitespace = true, skipNewLine = true) {
         const skipBracketsForward = direction === 1;
 
@@ -1135,8 +1027,11 @@ class StaticAnalyzer {
         return [start + 1, end];
     }
 
-    nextString(j) {
-        let curCommentIndex = binarySearchIntervals(this._commentsAndStrings, j, true);
+    nextString(j, params = {}) {
+        let curCommentIndex = params.cci;
+        if (curCommentIndex !== 0 && !curCommentIndex) {
+            curCommentIndex = binarySearchIntervals(this._commentsAndStrings, j, true);
+        }
 
         while (j < this.source.length) {
             if (curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
@@ -1154,6 +1049,10 @@ class StaticAnalyzer {
             }
 
             break;
+        }
+
+        if (params.hasOwnProperty('cci')) {
+            params.cci = curCommentIndex;
         }
 
         return curCommentIndex;
@@ -1197,31 +1096,7 @@ class StaticAnalyzer {
             exportBeginnings.push(curPos);
         }
 
-        let curCommentIndex = NaN;
-
-        const nextString = (j) => {
-            curCommentIndex = binarySearchIntervals(this._commentsAndStrings, j, true);
-
-            while (j < this.source.length) {
-                if (curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
-                    this._commentsAndStrings[curCommentIndex][0] <= j && j <= this._commentsAndStrings[curCommentIndex][1] &&
-                    (this._commentsAndStringsTypes[curCommentIndex] === 4 || this._commentsAndStringsTypes[curCommentIndex] === 5)) {
-
-                    j = this._commentsAndStrings[curCommentIndex][1];
-                    curCommentIndex++;
-                    continue;
-                }
-
-                if (this.source.charCodeAt(j) <= 32) {
-                    j++;
-                    continue;
-                }
-
-                break;
-            }
-
-            return curCommentIndex;
-        };
+        const cciObject = {cci: NaN};
 
         const analyzeExport = (i, exportIndex) => {
             i += 6;
@@ -1310,7 +1185,7 @@ class StaticAnalyzer {
 
             while (i < this.source.length) {
                 let j;
-                [j, curCommentIndex] = this.skipNonCode(i);
+                j = this.skipNonCodeNEW(i, cciObject);
                 memory.nonCodeSkipped = i !== j;
                 i = j;
 
@@ -1359,7 +1234,7 @@ class StaticAnalyzer {
                             memory.exportType = 'function';
                             i += 7;
                             let j;
-                            [j, curCommentIndex] = this.skipNonCode(i + 1);
+                            j = this.skipNonCodeNEW(i + 1, cciObject);
                             if ('*'.charCodeAt(0) === this.source.charCodeAt(j)) {
                                 i = j;
                                 memory.exportType = 'function*';
@@ -1394,7 +1269,7 @@ class StaticAnalyzer {
                         break;
 
                     case states.brackets.var:
-                        [i, curCommentIndex] = this.skipNonCode(i);
+                        i = this.skipNonCodeNEW(i, cciObject);
 
                         if (memory.nonCodeSkipped && 'a'.charCodeAt(0) === this.source.charCodeAt(i) && 's'.charCodeAt(0) === this.source.charCodeAt(i + 1)) {
                             i += 2;
@@ -1419,7 +1294,7 @@ class StaticAnalyzer {
                         break;
 
                     case states.brackets.label:
-                        [i, curCommentIndex] = this.skipNonCode(i);
+                        i = this.skipNonCodeNEW(i, cciObject);
 
                         if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
                             saveVar();
@@ -1471,7 +1346,7 @@ class StaticAnalyzer {
                         break;
 
                     case states.lcv.afterEqual:
-                        [i, curCommentIndex] = this.skipBrackets(i, curCommentIndex);
+                        i = this.skipBracketsNEW(i, cciObject);
 
                         if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
                             state = states.lcv.anything;
@@ -1509,7 +1384,7 @@ class StaticAnalyzer {
                     case states.from:
                         if (this.source.substr(i, 4) === 'from') {
                             i += 4;
-                            const url = this._commentsAndStrings[nextString(i)];
+                            const url = this._commentsAndStrings[this.nextString(i, cciObject)];
                             memory.from = this.source.substring(url[0] + 1, url[1] - 1);
                         }
 
@@ -1546,7 +1421,7 @@ class StaticAnalyzer {
         };
 
         for (let i = 0; i < exportBeginnings.length; i++) {
-            curCommentIndex = NaN;
+            cciObject.cci = NaN;
             let currExports = analyzeExport(exportBeginnings[i], i);
             for (let j in currExports) {
                 exports[j] = exports[j].concat(currExports[j]);
@@ -1569,7 +1444,7 @@ class StaticAnalyzer {
             importBeginnings.push(curPos);
         }
 
-        let curCommentIndex = NaN;
+        const cciObject = {cci: NaN};
 
         const analyzeImport = (i, exportIndex) => {
             i += 6;
@@ -1646,7 +1521,7 @@ class StaticAnalyzer {
 
             while (i < this.source.length) {
                 let j;
-                [j, curCommentIndex] = this.skipNonCode(i);
+                j = this.skipNonCodeNEW(i, cciObject);
                 memory.nonCodeSkipped = i !== j;
                 i = j;
 
@@ -1712,7 +1587,7 @@ class StaticAnalyzer {
                         break;
 
                     case states.brackets.label:
-                        [i, curCommentIndex] = this.skipNonCode(i);
+                        i = this.skipNonCodeNEW(i, cciObject);
 
                         if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
                             saveVar();
@@ -1761,7 +1636,7 @@ class StaticAnalyzer {
                      */
                     case states.all.anything:
                         memory.exportType = '*';
-                        [i, curCommentIndex] = this.skipNonCode(i);
+                        i = this.skipNonCodeNEW(i, cciObject);
                         if (this.source.substr(i, 2) === 'as') {
                             i += 2;
                             state = states.all.var;
@@ -1816,7 +1691,7 @@ class StaticAnalyzer {
         };
 
         for (let i = 0; i < importBeginnings.length; i++) {
-            curCommentIndex = NaN;
+            cciObject.cci = NaN;
             let currExports = analyzeImport(importBeginnings[i], i);
             for (let j in currExports) {
                 imports[j] = imports[j].concat(currExports[j]);
@@ -1931,7 +1806,6 @@ class StaticAnalyzer {
             + variable
             + ')(?=\\s|$|=|\\+|\\.|\\-|\\/|\\*|\\%|\\(|\\)|\\[|\\]|;|:|{|}|\\n|\\r|,|!|&|\\||\\^|\\?|>|<)', 'gm');
         let match;
-        const matches = [];
 
         // might be a bug if there is a = somethingsomethingfunction* x, we will mistake this for a definition
         // probably need to check the other side too
@@ -2089,8 +1963,6 @@ class StaticAnalyzer {
             if (!isNaN(res[i][1][0]) && !isNaN(res[i][1][1])) {
                 arrRes.push(this.source.substring(res[i][1][0], res[i][1][1]));
             }
-
-            // console.log(res[i][1][0], res[i][1][1]);
         }
         return arrRes.join('\n');
     }

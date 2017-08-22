@@ -7,7 +7,7 @@ const runStuff = () => {
 
     // ajax.get('https://cdnjs.cloudflare.com/ajax/libs/three.js/86/three.module.js', {}, data => {
     ajax.get('tmp.js', {}, data => {
-        // loadTHREEJS(data => {
+    //     loadTHREEJS(data => {
         // loadJQUERY(data => {
         // loadD3(data => {
         // loadOtherJS(data => {
