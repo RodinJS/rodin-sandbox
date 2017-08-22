@@ -852,7 +852,7 @@ class StaticAnalyzer {
             const skipParams = {cci: null};
             let c = null;
             // todo: make a debug flag for these things
-            this._scopeString += String.fromCharCode(bracket);
+            // this._scopeString += String.fromCharCode(bracket);
 
             switch (scopeType) {
                 case StaticAnalyzer.scopeTypes.es5:  // the global scope
@@ -868,7 +868,7 @@ class StaticAnalyzer {
                 case StaticAnalyzer.scopeTypes.arrowFunction:
                     // debugger;
                     i = this.skipNonCodeNEW(i + 2, cOBJ);
-                    scopeStart = i;
+                    // scopeStart = i;
                     curCommentIndex.cci = null;
                     c = j - 1;
                     c = this.skipNonCodeNEW(c, skipParams, -1); // add curCommentIndex
@@ -880,13 +880,13 @@ class StaticAnalyzer {
                         closingRoundBracket++;
                         c = this.getWordFromIndex(c)[0];
                         // todo: figure out if this if j or j+1
-                        openingRoundBracket = c + 1;
+                        openingRoundBracket = c;
                     } else {
                         // (a,b,c)=>
                         [c, cci] = this.skipBrackets(c, cci); //  add curCommentIndex
                         openingRoundBracket = c + 1;
                     }
-
+                    scopeStart = openingRoundBracket;
                     // scopeType = StaticAnalyzer.scopeTypes.arrowFunction;
 
                     // if (this.source.charCodeAt(i - 1) !== '('.charCodeAt(0)) {
@@ -945,6 +945,9 @@ class StaticAnalyzer {
                 // checking if the scope is a function
                 if (this.source.charCodeAt(j) === ')'.charCodeAt(0)) {
                     scopeData = checkIfClassOrFunction(j, 0); // check for a function
+                    if (scopeData[1]) {
+                        scopeStart = scopeData[1][0];
+                    }
                 } else {
                     scopeData = checkIfClassOrFunction(j, 1); // check for a class
                 }
