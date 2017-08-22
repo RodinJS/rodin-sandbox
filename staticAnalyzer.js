@@ -2069,7 +2069,14 @@ class StaticAnalyzer {
         this.imports = imports;
     }
 
-    findScope(index, scopeType = StaticAnalyzer.scopeTypes.es6) {
+    findScope(index, scopeType = StaticAnalyzer.scopeTypes.es6, ignoreDestruction = false) {
+
+        if(ignoreDestruction &&scopeType === StaticAnalyzer.scopeTypes.es6) {
+            const destructionIndex = this.getDestructionIndex(index);
+            if(destructionIndex !== -1) {
+                index = this._destructionScopes[destructionIndex][0];
+            }
+        }
 
         let opening = -1;
         let closing = -1;
@@ -2089,6 +2096,7 @@ class StaticAnalyzer {
         if (scopeType === StaticAnalyzer.scopeTypes.es6) {
             return this._es6ScopeGraph.lca(opening, closing);
         }
+
         return this._es5ScopeMap[this._es5ScopeGraph.lca(opening, closing)];
     }
 
@@ -2121,6 +2129,30 @@ class StaticAnalyzer {
             }
             leftmostOpeningIndex--;
         } while (leftmostOpeningIndex >= 0);
+
+        return false;
+    };
+
+    isAssignment(index) {
+        index = this.skipNonCodeNEW(index, cOBJ);
+
+        let i = 0;
+        let curLength = 0;
+        const len = assignmentTypes.length;
+        let cur = '';
+
+        while (i < len) {
+            if (curLength !== assignmentTypes[i].length) {
+                curLength = assignmentTypes[i].length;
+                cur = this.source.substr(index, curLength);
+            }
+
+            if (cur === assignmentTypes[i]) {
+                return true;
+            }
+
+            i++;
+        }
 
         return false;
     };
@@ -2164,32 +2196,6 @@ class StaticAnalyzer {
             StaticAnalyzer.scopeTypes.es6
         ];
 
-        const checkOverride = index => {
-            index = this.skipNonCodeNEW(index, cOBJ);
-
-            console.log(index);
-
-            let i = 0;
-            let curLength = 0;
-            const len = assignmentTypes.length;
-            let cur = '';
-
-            while (i < len) {
-                if (curLength !== assignmentTypes[i].length) {
-                    curLength = assignmentTypes[i].length;
-                    cur = this.source.substr(index, curLength);
-                }
-
-                if (cur === assignmentTypes[i]) {
-                    return true;
-                }
-
-                i++;
-            }
-
-            return false;
-        };
-
         const getDeclarationType = (index, scope = this.findScope(index), isOverride) => {
             if (this.isFunctionParam(index)) {
                 isOverride.value = false;
@@ -2197,8 +2203,8 @@ class StaticAnalyzer {
             }
 
             const destructionIndex = this.getDestructionIndex(index);
-            const endOfReference = destructionIndex !== -1 ? this._destructionScopes[destructionIndex][1] + 1: this.getWordFromIndex(index)[1];
-            isOverride.value = checkOverride(endOfReference);
+            const endOfReference = destructionIndex !== -1 ? this._destructionScopes[destructionIndex][1] + 1 : this.getWordFromIndex(index)[1];
+            isOverride.value = this.isAssignment(endOfReference);
 
             if (destructionIndex !== -1) {
                 index = this._destructionScopes[destructionIndex][0];
@@ -2270,10 +2276,10 @@ class StaticAnalyzer {
             if (!this.isCommentOrString(index)) {
                 const declaration = getDeclarationType(index, this.findScope(index), isOverride);
                 const scopeType = declarationTypeScopes[declarationTypes.indexOf(declaration)];
-                const scope = this.findScope(index, scopeType);
+                const scope = this.findScope(index, scopeType, true);
                 references.push({index, isOverride: isOverride.value, declaration, scope, scopeType})
 
-                if(declaration && scope !== 0) {
+                if (declaration && scope !== 0) {
                     this._es6ScopeGraph.dfs(scope => {
                         scopesToIgnore[scope] = 1;
                     }, scope);
@@ -2284,13 +2290,13 @@ class StaticAnalyzer {
         const ret = [];
         for (let i = 0; i < references.length; i++) {
             const ref = references[i];
-            if(scopesToIgnore[ref.scope])
+            if (scopesToIgnore[ref.scope])
                 continue;
 
             ret.push(ref);
         }
 
-        console.table(references);
+        console.table(ret);
     }
 
 
