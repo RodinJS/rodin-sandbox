@@ -1,84 +1,13 @@
-let _ = undefined;
 const cOBJ = {};
 
+const jsDelimiterChars = ['=', '+', '-', '/', '*', '%', '(', ')', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?', ' '].map(x => x.charCodeAt(0));
 const operatorChars = ['+', '-', '/', '*', '%', '>', '<', '&', '|', '^', '=', '?', ':', '~', '\n'].map(x => x.charCodeAt(0));
 const operatorWords = ['instanceof', 'delete', 'typeof', 'void', 'in'];
 const assignmentOperators = ['=', '+=', '-=', '*=', '/=', '%=', '&=', '^=', '|=', '**=', '>>=', '<<=', '>>>='];
 const unaryOperators = ['++', '--'];
 
-
-const doEvalCheck = (expr, direction = -1) => {
-    try {
-        let a = 0, b = 0;
-        switch (direction) {
-            case -1:
-                eval(`{a${expr}}`);
-                break;
-            case 0:
-                eval(`{a${expr}b}`);
-                break;
-            case 1:
-                eval(`{${expr}b}`);
-        }
-
-    } catch (e) {
-        return false;
-    }
-    return true;
-};
-
-const find = (source, needle, method = 'indexOf') => {
-    const res = [];
-    let cur = -1;
-
-    do {
-        cur = source[method](needle, cur + 1);
-        if (cur === -1)
-            break;
-        res.push([cur, needle]);
-    } while (true);
-
-    return res;
-};
-
 const commentNeedles = ['//', '\n', '/*', '*/', '\'', '"', '`', '${', '}', '/'];
 const scopeNeedles = ['{', '}'];
-
-const binarySearchIntervals = (intervals, index, right = false) => {
-    let low = 0;
-    let high = intervals.length - 1;
-    let mid = NaN;
-    while (low <= high) {
-        mid = Math.floor((low + high) / 2);
-        if (intervals[mid][0] <= index && index < intervals[mid][1]) return mid;
-        else if (intervals[mid][1] < index) low = mid + 1;
-        else high = mid - 1;
-    }
-
-    if (right) {
-        return low;
-    }
-
-    return -1;
-};
-
-const binarySearch = (array, index, left = false) => {
-    let low = 0;
-    let high = array.length - 1;
-    let mid = NaN;
-    while (low <= high) {
-        mid = Math.floor((low + high) / 2);
-        if (array[mid] === index) return mid;
-        else if (array[mid] < index) low = mid + 1;
-        else high = mid - 1;
-    }
-
-    if (left) {
-        return high;
-    }
-
-    return -1;
-};
 
 const findComments = (source) => {
     const commentRegex = /((?:\/\*(?:[^*]|(?:\*+[^*\/]))*\*+\/)|(?:\/\/.{0,})|(\'[^']{0,}[^\\]{0,1}\')|(\"[^"]{0,}[^\\]{0,1}\")|(\`.{0,}[^\\]{0,1}\$\{|\`\$\{)|(\}[^`]{0,}[^\\]{0,1}\`)|\/[^\/]{0,}[^\\]\/[gimX]{0,}(?=\s{0,}[;\,\)\=\+\-\.\n]|$))/gm;
@@ -102,7 +31,7 @@ const findNeedles = (source, needles) => {
     return needlePositions;
 };
 
-//debugging stuff
+// debugging stuff
 
 const loadTHREEJS = (cb, isMin = false) => {
     ajax.get(`https://cdnjs.cloudflare.com/ajax/libs/three.js/86/three${isMin ? '.min' : ''}.js`, {}, source => {
@@ -128,7 +57,7 @@ const loadOtherJS = (cb) => {
     })
 };
 
-//end
+// end debugging stuff
 
 const reduce = (source, needles) => {
     const reducedSourceArray = new Array(needles.length);
@@ -144,9 +73,6 @@ const reduce = (source, needles) => {
     const reducedSource = reducedSourceArray.join('');
     return [reducedSource, reduceMap];
 };
-
-const jsDelimiterChars = ['=', '+', '-', '/', '*', '%', '(', ')', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?', ' '].map(x => x.charCodeAt(0));
-
 
 class StaticAnalyzer {
     constructor(source) {
@@ -550,7 +476,6 @@ class StaticAnalyzer {
             // only need to do this for functions, classes dont have ()
             if (type === 0) {
                 closingRoundBracket = j + 1;
-                // [j, _] = this.skipBrackets(j);
                 j = this.skipBrackets(j, cOBJ);
                 openingRoundBracket = ++j;
 
@@ -1968,19 +1893,6 @@ class StaticAnalyzer {
     }
 
 }
-
-const reshapeObject = (object) => {
-    const len = object[Object.keys(object)[0]].length;
-    const ret = [];
-    for (let i = 0; i < len; i++) {
-        let col = {};
-        for (let key in object) {
-            col[key] = object[key][i]
-        }
-        ret.push(col)
-    }
-    return ret;
-};
 
 StaticAnalyzer.scopeTypes = {
     es5: 0b00000000000,
