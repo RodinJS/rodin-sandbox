@@ -1,7 +1,7 @@
-const app = new sandbox('test2.js', sandbox.types.EXPORT_WINDOW_SCOPE, {window_export: 132});
-app.on('ready', () => {
-	console.log(app.exports, app.scope);
-});
+// const app = new sandbox('test2.js', sandbox.types.EXPORT_WINDOW_SCOPE, {window_export: 132});
+// app.on('ready', () => {
+// 	console.log(app.exports, app.scope);
+// });
 
 
 // const three86Sandbox = new sandbox('https://cdnjs.cloudflare.com/ajax/libs/three.js/86/three.min.js', sandbox.types.EXPORT_WINDOW_SCOPE, {camels: true});

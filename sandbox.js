@@ -27,7 +27,7 @@ const map = `{
 }`;
 
 class sandbox extends EventEmitter {
-	constructor(url, exportType = sandbox.types.EXPORT_WINDOW_SCOPE, scope = {}) {
+	constructor(url, exportType = sandbox.types.EXPORT_WINDOW_SCOPE, global = {}) {
 		super();
 		this.url = url;
 		this.source = null;
@@ -41,7 +41,7 @@ class sandbox extends EventEmitter {
 			this.run();
 		});
 		this.exports = {};
-		this.scope = scope;
+		this.scope = global;
 		this.dependencies = [];
 		this.exportType = exportType;
 		this.isReady = false;
