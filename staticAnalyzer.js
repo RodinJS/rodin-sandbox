@@ -175,7 +175,7 @@ class StaticAnalyzer {
         let a = index;
         let strArr = [];
         const skipParams = {cci: null};
-        a = this.skipNonCodeNEW(a, skipParams, -1);
+        a = this.skipNonCode(a, skipParams, -1);
         if (this.source.charCodeAt(a) === '.'.charCodeAt(0) ||
             this.source.charCodeAt(a) === '('.charCodeAt(0) ||
             this.source.charCodeAt(a) === '['.charCodeAt(0)) {
@@ -193,13 +193,13 @@ class StaticAnalyzer {
                 }
             }
             strArr.push(this.source.charAt(a));
-            a = this.skipNonCodeNEW(a - 1, skipParams, -1);
+            a = this.skipNonCode(a - 1, skipParams, -1);
         }
         let operatorStr = strArr.reverse().join('');
         strArr = [];
         if (doEvalCheck(operatorStr)) {
             skipParams.cci = null;
-            a = this.skipNonCodeNEW(index, skipParams);
+            a = this.skipNonCode(index, skipParams);
             if (this.source.charCodeAt(a) === '.'.charCodeAt(0) ||
                 this.source.charCodeAt(a) === '('.charCodeAt(0) ||
                 this.source.charCodeAt(a) === '['.charCodeAt(0)) {
@@ -217,7 +217,7 @@ class StaticAnalyzer {
                     }
                 }
                 strArr.push(this.source.charAt(a));
-                a = this.skipNonCodeNEW(a + 1, skipParams);
+                a = this.skipNonCode(a + 1, skipParams);
             }
 
             operatorStr += strArr.join('');
@@ -551,7 +551,7 @@ class StaticAnalyzer {
             if (type === 0) {
                 closingRoundBracket = j + 1;
                 // [j, _] = this.skipBrackets(j);
-                j = this.skipBracketsNEW(j, cOBJ);
+                j = this.skipBrackets(j, cOBJ);
                 openingRoundBracket = ++j;
 
                 if (this._scopeData[scopeStack[scopeStackSize - 1]] &&
@@ -566,7 +566,7 @@ class StaticAnalyzer {
             let fcnOrClassName;
 
             while (tmpI < 2) {
-                j = this.skipNonCodeNEW(--j, cOBJ, -1);
+                j = this.skipNonCode(--j, cOBJ, -1);
                 const nextWord = this.getWordFromIndex(j);
                 const cur = this.source.substring(nextWord[0], nextWord[1]);
                 if (tmpI === 0)
@@ -619,10 +619,10 @@ class StaticAnalyzer {
 
                     break;
                 case StaticAnalyzer.scopeTypes.arrowFunction:
-                    i = this.skipNonCodeNEW(i + 2, cOBJ);
+                    i = this.skipNonCode(i + 2, cOBJ);
                     curCommentIndex.cci = null;
                     c = j - 1;
-                    c = this.skipNonCodeNEW(c, skipParams, -1); // add curCommentIndex
+                    c = this.skipNonCode(c, skipParams, -1); // add curCommentIndex
                     let closingRoundBracket = c;
                     let openingRoundBracket = null;
 
@@ -634,7 +634,7 @@ class StaticAnalyzer {
                         openingRoundBracket = c;
                     } else {
                         // (a,b,c)=>
-                        c = this.skipBracketsNEW(c, skipParams);
+                        c = this.skipBrackets(c, skipParams);
                         openingRoundBracket = c + 1;
                     }
                     scopeStart = openingRoundBracket;
@@ -660,9 +660,9 @@ class StaticAnalyzer {
                 case StaticAnalyzer.scopeTypes.for:
                     isOpening = true;
                     scopeStart = i;
-                    i = this.skipNonCodeNEW(i + 3, skipParams);
-                    i = this.skipBracketsNEW(i, skipParams);
-                    i = this.skipNonCodeNEW(++i, skipParams);
+                    i = this.skipNonCode(i + 3, skipParams);
+                    i = this.skipBrackets(i, skipParams);
+                    i = this.skipNonCode(++i, skipParams);
 
                     // i++;
 
@@ -681,7 +681,7 @@ class StaticAnalyzer {
 
             if (bracket === '{'.charCodeAt(0)) {
                 isOpening = true;
-                j = this.skipNonCodeNEW(--j, cOBJ, -1);
+                j = this.skipNonCode(--j, cOBJ, -1);
 
                 // checking if the scope is a function
                 if (this.source.charCodeAt(j) === ')'.charCodeAt(0)) {
@@ -702,7 +702,7 @@ class StaticAnalyzer {
                     scopeType = StaticAnalyzer.scopeTypes.destruction;
                     this._scopeData[scopeStack[scopeStackSize - 1]] = [scopeType];
                 } else {
-                    j = this.skipNonCodeNEW(++j, cOBJ);
+                    j = this.skipNonCode(++j, cOBJ);
 
                     if (this.source.charCodeAt(j) === '='.charCodeAt(0)) {
                         scopeType = StaticAnalyzer.scopeTypes.destruction;
@@ -813,14 +813,14 @@ class StaticAnalyzer {
                 } else if (cur === ']'.charCodeAt(0)) {
                     popBracketStack(']'.charCodeAt(0));
 
-                    const j = this.skipNonCodeNEW(i + 1, cOBJ);
+                    const j = this.skipNonCode(i + 1, cOBJ);
                     if (this.source.charCodeAt(j) === '='.charCodeAt(0)) {
                         this._destructions.push(i);
                     }
                 }
             }
 
-            i = this.skipNonCodeNEW(++i, curCommentIndex, 1, true, true, false);
+            i = this.skipNonCode(++i, curCommentIndex, 1, true, true, false);
         }
 
         // close the global scope
@@ -880,7 +880,7 @@ class StaticAnalyzer {
         return binarySearchIntervals(this._commentsAndStrings, index) !== -1;
     }
 
-    skipNonCodeNEW(j, params, direction = 1, skipComments = true, skipWhitespace = true, skipNewLine = true) {
+    skipNonCode(j, params, direction = 1, skipComments = true, skipWhitespace = true, skipNewLine = true) {
         const oldJ = j;
         let curCommentIndex = params.cci;
         if (curCommentIndex !== 0 && !curCommentIndex) {
@@ -917,7 +917,7 @@ class StaticAnalyzer {
         return j;
     };
 
-    skipBracketsNEW(j, params, forward = true, backward = true) {
+    skipBrackets(j, params, forward = true, backward = true) {
         let oldJ = j;
         const bracket = this.source.charCodeAt(j);
 
@@ -964,7 +964,7 @@ class StaticAnalyzer {
         const direction = isOpening ? 1 : -1;
         j += direction;
         while (j < this.source.length && j >= 0) {
-            j = this.skipNonCodeNEW(j, params, direction);
+            j = this.skipNonCode(j, params, direction);
 
             if (bracket === this.source.charCodeAt(j)) {
                 stack++;
@@ -995,8 +995,8 @@ class StaticAnalyzer {
         let currJ;
         do {
             currJ = j;
-            j = this.skipNonCodeNEW(j, params, direction, skipComments, skipWhitespace, skipNewLine);
-            j = this.skipBracketsNEW(j, params, skipBracketsForward, !skipBracketsForward);
+            j = this.skipNonCode(j, params, direction, skipComments, skipWhitespace, skipNewLine);
+            j = this.skipBrackets(j, params, skipBracketsForward, !skipBracketsForward);
         } while (currJ !== j && j >= 0 && j < this.source.length);
 
         return j;
@@ -1185,7 +1185,7 @@ class StaticAnalyzer {
 
             while (i < this.source.length) {
                 let j;
-                j = this.skipNonCodeNEW(i, cciObject);
+                j = this.skipNonCode(i, cciObject);
                 memory.nonCodeSkipped = i !== j;
                 i = j;
 
@@ -1234,7 +1234,7 @@ class StaticAnalyzer {
                             memory.exportType = 'function';
                             i += 7;
                             let j;
-                            j = this.skipNonCodeNEW(i + 1, cciObject);
+                            j = this.skipNonCode(i + 1, cciObject);
                             if ('*'.charCodeAt(0) === this.source.charCodeAt(j)) {
                                 i = j;
                                 memory.exportType = 'function*';
@@ -1269,7 +1269,7 @@ class StaticAnalyzer {
                         break;
 
                     case states.brackets.var:
-                        i = this.skipNonCodeNEW(i, cciObject);
+                        i = this.skipNonCode(i, cciObject);
 
                         if (memory.nonCodeSkipped && 'a'.charCodeAt(0) === this.source.charCodeAt(i) && 's'.charCodeAt(0) === this.source.charCodeAt(i + 1)) {
                             i += 2;
@@ -1294,7 +1294,7 @@ class StaticAnalyzer {
                         break;
 
                     case states.brackets.label:
-                        i = this.skipNonCodeNEW(i, cciObject);
+                        i = this.skipNonCode(i, cciObject);
 
                         if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
                             saveVar();
@@ -1346,7 +1346,7 @@ class StaticAnalyzer {
                         break;
 
                     case states.lcv.afterEqual:
-                        i = this.skipBracketsNEW(i, cciObject);
+                        i = this.skipBrackets(i, cciObject);
 
                         if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
                             state = states.lcv.anything;
@@ -1521,7 +1521,7 @@ class StaticAnalyzer {
 
             while (i < this.source.length) {
                 let j;
-                j = this.skipNonCodeNEW(i, cciObject);
+                j = this.skipNonCode(i, cciObject);
                 memory.nonCodeSkipped = i !== j;
                 i = j;
 
@@ -1587,7 +1587,7 @@ class StaticAnalyzer {
                         break;
 
                     case states.brackets.label:
-                        i = this.skipNonCodeNEW(i, cciObject);
+                        i = this.skipNonCode(i, cciObject);
 
                         if (','.charCodeAt(0) === currChar.charCodeAt(0)) {
                             saveVar();
@@ -1636,7 +1636,7 @@ class StaticAnalyzer {
                      */
                     case states.all.anything:
                         memory.exportType = '*';
-                        i = this.skipNonCodeNEW(i, cciObject);
+                        i = this.skipNonCode(i, cciObject);
                         if (this.source.substr(i, 2) === 'as') {
                             i += 2;
                             state = states.all.var;
@@ -1766,7 +1766,7 @@ class StaticAnalyzer {
     };
 
     isAssignment(index) {
-        let skippedIndex = this.skipNonCodeNEW(index, cOBJ);
+        let skippedIndex = this.skipNonCode(index, cOBJ);
 
         if(this.isSubstringInArray(skippedIndex, assignmentOperators)) {
             return true;
@@ -1776,7 +1776,7 @@ class StaticAnalyzer {
             return true;
         }
 
-        skippedIndex = this.skipNonCodeNEW(index - 1, cOBJ, -1);
+        skippedIndex = this.skipNonCode(index - 1, cOBJ, -1);
         const substr = this.source.substr(skippedIndex - 2, 2);
         return substr === '++' || substr === '--';
     };
@@ -1788,7 +1788,7 @@ class StaticAnalyzer {
         let i = 0;
         while (i < n_destructions) {
             let destructionEnd = this._destructions[i];
-            this._destructionScopes.push([this.skipBracketsNEW(destructionEnd, cOBJ, false, true), destructionEnd]);
+            this._destructionScopes.push([this.skipBrackets(destructionEnd, cOBJ, false, true), destructionEnd]);
             i++;
         }
     }
@@ -1834,7 +1834,7 @@ class StaticAnalyzer {
             }
 
             const scopeStart = scope === -1 ? 0 : this._es6Scopes[0][scope];
-            index = this.skipNonCodeNEW(index - 1, cOBJ, -1);
+            index = this.skipNonCode(index - 1, cOBJ, -1);
 
             // multivariable case
             if (this.source.charCodeAt(index) === 44 /* ','.charCodeAt(0) */) {
