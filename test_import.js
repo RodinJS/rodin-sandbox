@@ -1,8 +1,3 @@
-const camel_dependency = 14;
-const other_dependency = {uxt: 0};
+class Def {}
 
-export {camel_dependency, other_dependency};
-
-
-
-console.log('we are inside the dependency');
+export      /*sf;kjsdkfjdkg*/    default Def;

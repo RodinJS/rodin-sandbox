@@ -805,7 +805,7 @@ class StaticAnalyzer {
         return binarySearchIntervals(this._commentsAndStrings, index) !== -1;
     }
 
-    skipNonCode(j, params, direction = 1, skipComments = true, skipWhitespace = true, skipNewLine = true) {
+    skipNonCode(j, params, direction = 1, skipComments = true, skipWhitespace = true, skipNewLine = true, skipStrings = true) {
         const oldJ = j;
         let curCommentIndex = params.cci;
         if (curCommentIndex !== 0 && !curCommentIndex) {
@@ -983,7 +983,7 @@ class StaticAnalyzer {
         return curCommentIndex;
     };
 
-    isSubstringInArray(index, array, direction = 1) {
+    isSubstringInArray(index, array, direction = 1, params = cOBJ) {
         let i = 0;
         let curLength = 0;
         const len = array.length;
@@ -992,7 +992,7 @@ class StaticAnalyzer {
         while (i < len) {
             if (curLength !== array[i].length) {
                 curLength = array[i].length;
-                if(direction === 1) {
+                if (direction === 1) {
                     cur = this.source.substr(index, curLength);
                 } else {
                     cur = this.source.substr(index - curLength + 1, curLength);
@@ -1010,22 +1010,13 @@ class StaticAnalyzer {
     }
 
     findExports() {
-        const rx = /(?:^|\s|\/|\)|\[|;|{|})(export)(?={|\s|\/)/gm;
-        let match;
-        const exportBeginnings = [];
-        while ((match = rx.exec(this.source))) {
-            let curPos = match[0].indexOf('export') + match.index;
-            if (this.isCommentOrString(curPos)) {
-                continue;
-            }
-            exportBeginnings.push(curPos);
-        }
-
         const cciObject = {cci: NaN};
+        const exports = [];
 
         const analyzeExport = (i, exportIndex) => {
-            i += 6;
+            cciObject.cci = NaN;
             const exportBeginning = i;
+            i += 6;
 
             const states = {
                 start: 0,
@@ -1058,22 +1049,6 @@ class StaticAnalyzer {
                 from: null
             };
 
-            const currExportsArr = {
-                exportIndexes: [],
-                exportBeginnings: [],
-                names: [],
-                labels: [],
-                isBrackets: [],
-                isLet: [],
-                isConst: [],
-                isVar: [],
-                isClass: [],
-                isFunction: [],
-                isGeneratorFunction: [],
-                isAll: [],
-                from: [],
-            };
-
             const saveVar = () => {
                 const name = memory.currVar.join('');
                 const label = memory.currLabelLength > 0 ? memory.currLabel.join('') : name;
@@ -1083,27 +1058,30 @@ class StaticAnalyzer {
                 memory.currVarLength = 0;
                 memory.currLabelLength = 0;
 
-                currExportsArr.exportIndexes.push(exportIndex);
-                currExportsArr.exportBeginnings.push(exportBeginning);
-                currExportsArr.names.push(name);
-                currExportsArr.labels.push(label || name);
-                currExportsArr.isBrackets.push(memory.exportType === 'brackets');
-                currExportsArr.isLet.push(memory.exportType === 'let');
-                currExportsArr.isConst.push(memory.exportType === 'const');
-                currExportsArr.isVar.push(memory.exportType === 'var');
-                currExportsArr.isClass.push(memory.exportType === 'class');
-                currExportsArr.isFunction.push(memory.exportType === 'function');
-                currExportsArr.isGeneratorFunction.push(memory.exportType === 'function*');
-                currExportsArr.isAll.push(memory.exportType === '*');
-                currExportsArr.from.push(memory.from);
+                exports.push({
+                    exportIndex,
+                    exportBeginning,
+                    name,
+                    label,
+                    isBrackets: memory.exportType === 'brackets',
+                    isLet: memory.exportType === 'let',
+                    isConst: memory.exportType === 'const',
+                    isVar: memory.exportType === 'var',
+                    isClass: memory.exportType === 'class',
+                    isFunction: memory.exportType === 'function',
+                    isGeneratorFunction: memory.exportType === 'function*',
+                    isAll: memory.exportType === '*',
+                    isDefault: memory.exportType === 'default',
+                    from: memory.from
+                })
             };
 
-            const collectResults = () => {
-                if (memory.from)
-                    for (let i = 0; i < currExportsArr.from.length; i++)
-                        currExportsArr.from[i] = memory.from
-
-                return currExportsArr;
+            const collectResults = (end = i) => {
+                let i = exports.length;
+                while (--i >= 0 && exports[i].exportIndex === exportIndex) {
+                    exports[i].from = memory.from;
+                    exports[i].exportEnd = end;
+                }
             };
 
             let state = states.start;
@@ -1179,6 +1157,7 @@ class StaticAnalyzer {
                         if ('default' === this.source.substr(i, 7) && jsDelimiterChars.indexOf(this.source.charCodeAt(i + 7)) !== -1) {
                             memory.exportType = 'default';
                             state = states.end;
+                            saveVar();
                             break;
                         }
 
@@ -1311,10 +1290,8 @@ class StaticAnalyzer {
                             i += 4;
                             const url = this._commentsAndStrings[this.nextString(i, cciObject)];
                             memory.from = this.source.substring(url[0] + 1, url[1] - 1);
+                            return collectResults(url[1]);
                         }
-
-                        state = states.end;
-                        break;
 
                     /**
                      * Return results
@@ -1329,51 +1306,28 @@ class StaticAnalyzer {
             return collectResults();
         };
 
-        const exports = {
-            exportIndexes: [],
-            exportBeginnings: [],
-            names: [],
-            labels: [],
-            isBrackets: [],
-            isLet: [],
-            isVar: [],
-            isConst: [],
-            isClass: [],
-            isFunction: [],
-            isGeneratorFunction: [],
-            isAll: [],
-            from: []
-        };
-
-        for (let i = 0; i < exportBeginnings.length; i++) {
-            cciObject.cci = NaN;
-            let currExports = analyzeExport(exportBeginnings[i], i);
-            for (let j in currExports) {
-                exports[j] = exports[j].concat(currExports[j]);
+        const rx = /(?:^|\s|\/|\)|\[|;|{|})(export)(?={|\s|\/)/gm;
+        let match;
+        let i = 0;
+        while ((match = rx.exec(this.source))) {
+            let curPos = match[0].indexOf('export') + match.index;
+            if (this.isCommentOrString(curPos)) {
+                continue;
             }
+            analyzeExport(curPos, i++);
         }
 
         this.exports = exports;
     }
 
     findImports() {
-        const rx = /(?:^|\s|\/|\)|\[|;|{|})(import)(?={|\s|\/)/gm;
-        let match;
-        const importBeginnings = [];
-        while ((match = rx.exec(this.source))) {
-            let curPos = match[0].indexOf(match[1]) + match.index;
-            if (this.isCommentOrString(curPos) || this.findScope(curPos) !== 0) {
-                continue;
-            }
-
-            importBeginnings.push(curPos);
-        }
-
         const cciObject = {cci: NaN};
+        const imports = [];
 
-        const analyzeImport = (i, exportIndex) => {
-            i += 6;
+        const analyzeImport = (i, importIndex) => {
+            cciObject.cci = NaN;
             const importBeginning = i;
+            i += 6;
 
             const states = {
                 start: 0,
@@ -1404,17 +1358,6 @@ class StaticAnalyzer {
                 from: null
             };
 
-            const currImportsArr = {
-                importIndexes: [],
-                importBeginnings: [],
-                names: [],
-                labels: [],
-                isBrackets: [],
-                isDefault: [],
-                isAll: [],
-                from: [],
-            };
-
             const saveVar = () => {
                 const name = memory.currVar.join('');
                 const label = memory.currLabelLength > 0 ? memory.currLabel.join('') : name;
@@ -1424,29 +1367,32 @@ class StaticAnalyzer {
                 memory.currVarLength = 0;
                 memory.currLabelLength = 0;
 
-                currImportsArr.importIndexes.push(exportIndex);
-                currImportsArr.importBeginnings.push(importBeginning);
-                currImportsArr.names.push(name);
-                currImportsArr.labels.push(label || name);
-                currImportsArr.isBrackets.push(memory.importType === 'brackets');
-                currImportsArr.isDefault.push(memory.importType === 'default');
-                currImportsArr.isAll.push(memory.importType === '*');
-                currImportsArr.from.push(memory.from);
+                imports.push({
+                    importIndex,
+                    importBeginning,
+                    importEnd: memory.importEnd,
+                    name,
+                    label,
+                    isBrackets: memory.importType === 'brackets',
+                    isDefault: memory.importType === 'default',
+                    isAll: memory.importType === '*',
+                    from: memory.from
+                })
             };
 
             const collectResults = () => {
-                if (memory.from)
-                    for (let i = 0; i < currImportsArr.from.length; i++)
-                        currImportsArr.from[i] = memory.from
-
-                return currImportsArr;
+                let i = imports.length;
+                while (--i >= 0 && imports[i].importIndex === importIndex) {
+                    imports[i].from = memory.from;
+                    imports[i].importEnd = memory.importEnd;
+                }
             };
 
             let state = states.start;
 
             while (i < this.source.length) {
                 let j;
-                j = this.skipNonCode(i, cciObject);
+                j = this.skipNonCode(i, cciObject, 1, true, true, true, false);
                 memory.nonCodeSkipped = i !== j;
                 i = j;
 
@@ -1470,6 +1416,7 @@ class StaticAnalyzer {
                         if (this.source.substr(i, 4) === 'from') {
                             i += 4;
                             const url = this._commentsAndStrings[this.nextString(i)];
+                            memory.importEnd = url[1];
                             memory.from = this.source.substring(url[0] + 1, url[1] - 1);
                             state = states.end;
                             break;
@@ -1560,7 +1507,7 @@ class StaticAnalyzer {
                      * IMPORT TYPE * as obj
                      */
                     case states.all.anything:
-                        memory.exportType = '*';
+                        memory.importType = '*';
                         i = this.skipNonCode(i, cciObject);
                         if (this.source.substr(i, 2) === 'as') {
                             i += 2;
@@ -1571,7 +1518,7 @@ class StaticAnalyzer {
                         break;
 
                     case states.all.var:
-                        if (','.charCodeAt(i) === currChar.charCodeAt(i)) {
+                        if (','.charCodeAt(i) === currChar.charCodeAt(0)) {
                             saveVar();
                             state = states.start;
                             break;
@@ -1604,23 +1551,16 @@ class StaticAnalyzer {
             return collectResults();
         };
 
-        const imports = {
-            importIndexes: [],
-            importBeginnings: [],
-            names: [],
-            labels: [],
-            isBrackets: [],
-            isDefault: [],
-            isAll: [],
-            from: [],
-        };
-
-        for (let i = 0; i < importBeginnings.length; i++) {
-            cciObject.cci = NaN;
-            let currExports = analyzeImport(importBeginnings[i], i);
-            for (let j in currExports) {
-                imports[j] = imports[j].concat(currExports[j]);
+        const rx = /(?:^|\s|\/|\)|\[|;|{|})(import)(?={|\s|\/)/gm;
+        let match;
+        let i = 0;
+        while ((match = rx.exec(this.source))) {
+            let curPos = match[0].indexOf(match[1]) + match.index;
+            if (this.isCommentOrString(curPos) || this.findScope(curPos) !== 0) {
+                continue;
             }
+
+            analyzeImport(curPos, i++);
         }
 
         this.imports = imports;
@@ -1693,11 +1633,11 @@ class StaticAnalyzer {
     isAssignment(index) {
         let skippedIndex = this.skipNonCode(index, cOBJ);
 
-        if(this.isSubstringInArray(skippedIndex, assignmentOperators)) {
+        if (this.isSubstringInArray(skippedIndex, assignmentOperators)) {
             return true;
         }
 
-        if(this.isSubstringInArray(skippedIndex, unaryOperators)) {
+        if (this.isSubstringInArray(skippedIndex, unaryOperators)) {
             return true;
         }
 
@@ -1744,7 +1684,7 @@ class StaticAnalyzer {
             StaticAnalyzer.scopeTypes.es6
         ];
 
-        const getDeclarationType = (index, scope = this.findScope(index), isOverride) => {
+        const getDeclarationType = (index, scope = this.findScope(index), isOverride, params = {}) => {
             if (this.isFunctionParam(index)) {
                 isOverride.value = false;
                 return 'param';
@@ -1753,6 +1693,7 @@ class StaticAnalyzer {
             const destructionIndex = this.getDestructionIndex(index);
             const endOfReference = destructionIndex !== -1 ? this._destructionScopes[destructionIndex][1] + 1 : this.getWordFromIndex(index)[1];
             isOverride.value = this.isAssignment(endOfReference);
+            isOverride.index = endOfReference;
 
             if (destructionIndex !== -1) {
                 index = this._destructionScopes[destructionIndex][0];
@@ -1795,20 +1736,59 @@ class StaticAnalyzer {
                 }
             }
 
-            return this.isSubstringInArray(index, declarationTypes, -1);
+            const declarationType = this.isSubstringInArray(index, declarationTypes, -1);
+
+            if(declarationType) {
+                params.start = index - declarationType.length;
+            }
+            return declarationType;
         };
 
         const references = [];
         const isOverride = {value: false};
 
+        const isObject = (index) => {
+            let start = index;
+            let end = index;
+
+            const params = {cci: NaN};
+            while (start >= 0) {
+                const cur = this.source.charCodeAt(start);
+                if(jsDelimiterChars.indexOf(cur) !== -1) {
+                    if(cur === '.'.charCodeAt(0))
+                        return false;
+                    if(cur === ','.charCodeAt(0) || cur === '{'.charCodeAt(0))
+                        break;
+                    else
+                        return false;
+                }
+
+                start = this.skipNonCode(start - 1, params, -1);
+            }
+
+            while(end < this.source.length) {
+                const cur = this.source.charCodeAt(end);
+                if(jsDelimiterChars.indexOf(cur) !== -1) {
+                    if(cur === ':'.charCodeAt(0))
+                        break;
+                    else
+                        return false;
+                }
+                end = this.skipNonCode(end + 1, params);
+            }
+
+            return true;
+        };
+
         const scopesToIgnore = new Int8Array(this._es6Scopes[0].length);
         while ((match = rx.exec(this.source))) {
             const index = match[0].indexOf(variable) + match.index;
-            if (!this.isCommentOrString(index)) {
-                const declaration = getDeclarationType(index, this.findScope(index), isOverride);
+            if (!this.isCommentOrString(index) && !isObject(index)) {
+                const params = {start: -1};
+                const declaration = getDeclarationType(index, this.findScope(index), isOverride, params);
                 const scopeType = declarationTypeScopes[declarationTypes.indexOf(declaration)];
                 const scope = this.findScope(index, scopeType, true);
-                references.push({index, isOverride: isOverride.value, declaration, scope, scopeType})
+                references.push({index, isOverride: Object.assign({}, isOverride), declaration, scope, scopeType, declarationStart: params.start});
 
                 if (declaration && scope !== 0) {
                     this._es6ScopeGraph.dfs(scope => {
@@ -1868,7 +1848,7 @@ class StaticAnalyzer {
     }
 
     visualizeImports() {
-        console.table(reshapeObject(this.imports))
+        console.table(this.imports)
     }
 
     printBrokenScopes() {

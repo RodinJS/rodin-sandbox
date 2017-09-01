@@ -73,7 +73,7 @@ class EventEmitter {
 	/**
 	 * Emits Event with params.
 	 * @param {String} eventName
-	 * @param {RodinEvent} rodinEvent - a custom Event object
+	 * @param {*} rodinEvent - a custom Event object
 	 * @param {Array} args - arguments to be passed to the event callback
 	 */
 	emit(eventName, rodinEvent = {}, ...args) {
@@ -91,7 +91,7 @@ class EventEmitter {
 	/**
 	 * Emits event async
 	 * @param {String} eventName
-	 * @param {RodinEvent} rodinEvent - a custom Event object
+	 * @param {*} rodinEvent - a custom Event object
 	 * @param {Array} args - arguments to be passed to the event callback
 	 */
 	emitAsync(eventName, rodinEvent, ...args) {

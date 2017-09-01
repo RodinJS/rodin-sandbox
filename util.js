@@ -213,3 +213,32 @@ class Graph {
         }
     }
 }
+
+const path = {
+    isAbsolute: (path) => {
+        return path.startsWith('/') || path.startsWith('http://') || path.startsWith('https://')
+    },
+    join: (...args) => {
+        return path.normalize(args.reduce((a, b) => a += `/${b}`, ''));
+    },
+    getDirectory: (path) => {
+        return path.substring(0, path.lastIndexOf('/'));
+    },
+    normalize: (path) => {
+        const paths = path.split('/');
+        const res = [];
+        for (let i = 0; i < paths.length; i++) {
+            switch (paths[i]) {
+                case '.':
+                case '':
+                    break;
+                case '..':
+                    res.pop();
+                    break;
+                default:
+                    res.push(paths[i]);
+            }
+        }
+        return res.join('/');
+    }
+};

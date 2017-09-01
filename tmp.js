@@ -1,12 +1,14 @@
-let x = 10;
+import * as x from 'x.js';
 
-{
-    function a() {
-        x += 10;
-        console.log(x);
-    }
+import {b as c, d as e, f} from 'tmp.js';
 
-    let y = 30, x = 29, z = 10;
+let i = 10;
+/**
+ * Some code here
+ */
 
-    a();
-}
+export const y = 20;
+
+
+
+import {a} from './uxt.js'
