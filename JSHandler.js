@@ -60,7 +60,7 @@ class JSHandler extends EventEmitter {
                             const curUrl = getAbsoluteUrl(file.url, file.analyzer.imports[i].from);
                             if (file.analyzer.imports[i].isAll){
                                 curImports.push(this.files[curUrl].exportedValues);
-                            } if (file.analyzer.imports[i].isDefault) {
+                            } else if (file.analyzer.imports[i].isDefault) {
                                 curImports.push(this.files[curUrl].exportedValues['default'])
                             } else {
                                 curImports.push(this.files[curUrl].exportedValues[file.analyzer.imports[i].name])

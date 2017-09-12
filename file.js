@@ -23,7 +23,6 @@ class StringTokenizer {
         const tmp = [];
 
         let curIndexOriginalString = 0;
-        // todo: add sort()
         this.changes.forEach((e, i) => {
             e.originalIndex = i;
         });
@@ -88,14 +87,12 @@ class File extends EventEmitter {
             this.analyzer.analyzeFunctionParams();
             this.analyzer.findImports();
             this.analyzer.findExports();
-            // this.emit('analyzed', {});
             resolve();
         });
     }
 
     transpile(args) {
         return new Promise((resolve, reject) => {
-            // debugger;
             console.time("transpile");
             const imports = this.analyzer.imports;
             const exports = this.analyzer.exports;
@@ -116,9 +113,7 @@ class File extends EventEmitter {
                 curIndex = imports[i].importIndex;
             }
 
-            const processedNames = new Set();
-
-            console.log(exports);
+            const processedNames = {};
 
             curIndex = -1;
             for (let i = 0; i < exports.length; i++) {
@@ -126,8 +121,14 @@ class File extends EventEmitter {
                 const name = exprt.name;
                 const label = exprt.label;
 
-                if(processedNames.has(name)) continue; // TODO: implement multiple export
-                processedNames.add(name);
+                if (processedNames[name]) {
+                    tokenizer.add(this.source.length, `Object.defineProperty(exports, '${label}', {
+                        get: function() { return exports.${processedNames[name]}; }
+                    })`);
+                    continue;
+                }
+
+                processedNames[name] = label;
 
                 let references = [];
                 if (!exprt.isDefault) {
@@ -135,35 +136,48 @@ class File extends EventEmitter {
                 }
 
 
-                if (exprt.isLet || exprt.isVar || exprt.isConst) {
-                    tokenizer.remove(exprt.exportBeginning, exprt.exportBeginning + 6);
+                // if (exprt.isLet || exprt.isVar || exprt.isConst) {
+                //     tokenizer.remove(exprt.exportBeginning, exprt.exportBeginning + 6);
+                //
+                // } else if (exprt.isBrackets) {
+                //     if (curIndex !== exprt.exportIndex) {
+                //         tokenizer.remove(exprt.exportBeginning, exprt.exportEnd);
+                //     }
+                //     curIndex = exprt.exportIndex;
+                //-
+                //     tokenizer.add(this.source.length, `\nexports.${label} = ${name}`);
+                // } else if (exprt.isFunction || exprt.isGeneratorFunction) {
+                //     tokenizer.remove(exprt.exportBeginning, exprt.exportBeginning + 6);
+                // } else if (exprt.isDefault) {
+                //     tokenizer.replace(exprt.exportBeginning, exprt.exportEnd + 6, `exports.default = `);
+                // } else {
+                //
+                // }
 
-                } else if (exprt.isBrackets) {
-                    if (curIndex !== exprt.exportIndex) {
+                if (curIndex !== exprt.exportIndex) {
+                    if (exprt.isLet || exprt.isVar || exprt.isConst) {
+                        tokenizer.remove(exprt.exportBeginning, exprt.exportBeginning + 6);
+                    } else if (exprt.isBrackets) {
                         tokenizer.remove(exprt.exportBeginning, exprt.exportEnd);
+                    } else if (exprt.isFunction || exprt.isGeneratorFunction || exprt.isClass) {
+                        tokenizer.remove(exprt.exportBeginning, exprt.exportBeginning + 6);
+                        tokenizer.add(this.source.length, `\nexports.${label} = ${name};`);
+                    } else if (exprt.isDefault) {
+                        tokenizer.replace(exprt.exportBeginning, exprt.exportEnd + 6, `exports.default = `);
                     }
-                    curIndex = exprt.exportIndex;
-
-
-                    tokenizer.add(this.source.length, `\nexports.${label} = ${name}`);
-                } else if (exprt.isFunction || exprt.isGeneratorFunction) {
-                    tokenizer.remove(exprt.exportBeginning, exprt.exportBeginning + 6);
-                } else if (exprt.isDefault) {
-                    tokenizer.replace(exprt.exportBeginning, exprt.exportEnd + 6, `exports.default = `);
-
-                    // console.log(exprt);
-                } else {
-
                 }
+
+                curIndex = exprt.exportIndex;
 
                 for (let j = 0; j < references.length; j++) {
                     const ref = references[j];
 
                     if (ref.declaration) {
-                        if(ref.declaration === 'function' || ref.declaration === 'function*' || ref.declaration === 'class') {
-                            // console.log('ref', ref);
+                        if (ref.declaration === 'function' || ref.declaration === 'function*') {
                             tokenizer.add(0, `exports.${label} = ${name};\n`);
-                        } else if (ref.isOverride.value){
+                        } else if (ref.declaration === 'class') {
+                            tokenizer.add(this.source.length, `\nexports.${label} = ${name};\n`);
+                        } else if (ref.isOverride.value) {
                             tokenizer.add(ref.isOverride.index + 1, `= exports.${label} `);
                         }
                     } else if (!exprt.isBrackets || (ref.index < exprt.exportBeginning || ref.index >= exprt.exportEnd)) {
@@ -175,6 +189,7 @@ class File extends EventEmitter {
             tokenizer.add(this.source.length, `\n}))`);
 
             this.transpiledSource = tokenizer.apply();
+            // console.log(this.transpiledSource);
             console.timeEnd('transpile');
             resolve();
         });
