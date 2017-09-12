@@ -189,7 +189,7 @@ class File extends EventEmitter {
             tokenizer.add(this.source.length, `\n}))`);
 
             this.transpiledSource = tokenizer.apply();
-            // console.log(this.transpiledSource);
+            console.log(this.transpiledSource);
             console.timeEnd('transpile');
             resolve();
         });

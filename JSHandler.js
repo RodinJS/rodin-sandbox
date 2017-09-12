@@ -61,7 +61,7 @@ class JSHandler extends EventEmitter {
                             if (file.analyzer.imports[i].isAll){
                                 curImports.push(this.files[curUrl].exportedValues);
                             } else if (file.analyzer.imports[i].isDefault) {
-                                curImports.push(this.files[curUrl].exportedValues['default'])
+                                curImports.push(this.files[curUrl].exportedValues.default)
                             } else {
                                 curImports.push(this.files[curUrl].exportedValues[file.analyzer.imports[i].name])
                             }
