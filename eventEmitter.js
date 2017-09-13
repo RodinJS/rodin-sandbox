@@ -77,8 +77,6 @@ class EventEmitter {
 	 * @param {Array} args - arguments to be passed to the event callback
 	 */
 	emit(eventName, rodinEvent = {}, ...args) {
-		rodinEvent.type = eventName;
-
 		if (this.events[eventName] && this.events[eventName].length > 0) {
 			for (let f = 0; f < this.events[eventName].length; f++) {
 				if (typeof this.events[eventName][f] === "function") {

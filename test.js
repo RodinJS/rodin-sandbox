@@ -2,7 +2,8 @@
 //
 // console.log(BoxGeometry === CubeGeometry);
 
-import {x, x as y} from 'test_import.js'
+import {x} from 'test_import.js'
 
-console.log('x', x);
-console.log('y', y);
+setInterval(() => {
+    console.log('test.js: x', x);
+}, 2000);

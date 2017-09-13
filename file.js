@@ -58,7 +58,6 @@ StringTokenizer.changeTypes = {
     remove: 2
 };
 
-
 class File extends EventEmitter {
     constructor(url) {
         super();
@@ -66,7 +65,7 @@ class File extends EventEmitter {
         this.exports = {};
         this.analyzer = null;
 
-        this.exportedValues = {};
+        this.exportedValues = new EventEmitter();
     }
 
     load() {
@@ -101,7 +100,12 @@ class File extends EventEmitter {
             const import_files = Array.from(new Set(this.analyzer.imports.map(i => `'${i.from}'`))).join(', ');
             const import_variables = imports.map(i => i.label).join(', ');
 
-            tokenizer.add(0, `${args.loadImports}([${import_files}],((${import_variables})=>{\n`);
+            tokenizer.add(0, `${args.loadImports}([${import_files}],((setters, ${import_variables})=>{\n`);
+            tokenizer.add(0, `
+                for(let i = 0; i < setters.length; i ++) {
+                    setters[i].from.on(setters[i].name, newValue => eval(\`\${setters[i].name} = newValue\`))
+                }
+            `);
             tokenizer.add(0, `const exports = ${args.exportedValues};\n`);
 
             let curIndex = -1;
@@ -121,10 +125,23 @@ class File extends EventEmitter {
                 const name = exprt.name;
                 const label = exprt.label;
 
-                if (processedNames[name]) {
-                    tokenizer.add(this.source.length, `Object.defineProperty(exports, '${label}', {
-                        get: function() { return exports.${processedNames[name]}; }
+                if (!processedNames[name]) {
+                    tokenizer.add(0, `exports._${label} = void 0;\n`);
+                    tokenizer.add(0, `Object.defineProperty(exports, '${label}', {
+                        enumerable: true,
+                        set: (value) => {
+                            exports._${label} = value;
+                            exports.emit('${label}', value);
+                        },
+                        get: () => exports._${label}
+                    })\n\n`);
+                } else {
+                    tokenizer.add(0, `Object.defineProperty(exports, '${label}', {
+                        enumerable: true,
+                        get: () => exports.${processedNames[name]},
                     })`);
+                    tokenizer.add(0, `exports.on(${processedNames[name]}, value => {exports.${label} = value; })`);
+
                     continue;
                 }
 

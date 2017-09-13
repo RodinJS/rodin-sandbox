@@ -56,18 +56,22 @@ class JSHandler extends EventEmitter {
                         this.files[file.url] = file;
 
                         const curImports = [];
+                        const setters = [];
+
                         for (let i = 0; i < file.analyzer.imports.length; i++) {
                             const curUrl = getAbsoluteUrl(file.url, file.analyzer.imports[i].from);
+
                             if (file.analyzer.imports[i].isAll) {
                                 curImports.push(this.files[curUrl].exportedValues);
                             } else if (file.analyzer.imports[i].isDefault) {
                                 curImports.push(this.files[curUrl].exportedValues.default)
                             } else {
-                                curImports.push(this.files[curUrl].exportedValues[file.analyzer.imports[i].name])
+                                curImports.push(this.files[curUrl].exportedValues[file.analyzer.imports[i].name]);
+                                setters.push({from: this.files[curUrl].exportedValues, name: file.analyzer.imports[i].name, label: file.analyzer.imports[i].label});
                             }
                         }
 
-                        runCode(...curImports);
+                        runCode(setters, ...curImports);
                     }
                 };
 
@@ -82,7 +86,11 @@ class JSHandler extends EventEmitter {
                 }
             };
 
-            eval(file.transpiledSource);
+            try {
+                eval(file.transpiledSource);
+            } catch (err) {
+                throw new Error(err);
+            }
             resolve();
         });
     }
