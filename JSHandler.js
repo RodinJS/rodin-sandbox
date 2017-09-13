@@ -44,7 +44,7 @@ class JSHandler extends EventEmitter {
 
 
     eval(file) {
-        return new Promise((resolve, reject)=>{
+        return new Promise((resolve, reject) => {
 
             const make_imports_work_and_shit = (imports_array, runCode) => {
                 const n = imports_array.length;
@@ -58,15 +58,13 @@ class JSHandler extends EventEmitter {
                         const curImports = [];
                         for (let i = 0; i < file.analyzer.imports.length; i++) {
                             const curUrl = getAbsoluteUrl(file.url, file.analyzer.imports[i].from);
-                            if (file.analyzer.imports[i].isAll){
+                            if (file.analyzer.imports[i].isAll) {
                                 curImports.push(this.files[curUrl].exportedValues);
                             } else if (file.analyzer.imports[i].isDefault) {
                                 curImports.push(this.files[curUrl].exportedValues.default)
                             } else {
                                 curImports.push(this.files[curUrl].exportedValues[file.analyzer.imports[i].name])
                             }
-
-                            // console.log(file.analyzer);
                         }
 
                         runCode(...curImports);
@@ -74,7 +72,7 @@ class JSHandler extends EventEmitter {
                 };
 
                 for (let i = 0; i < n; i++) {
-                    this.handleUrl(file.url, imports_array[i]).then( () => {
+                    this.handleUrl(file.url, imports_array[i]).then(() => {
                         checkIfAllIsDone();
                     });
                 }
@@ -84,7 +82,6 @@ class JSHandler extends EventEmitter {
                 }
             };
 
-            // console.log(file.transpiledSource);
             eval(file.transpiledSource);
             resolve();
         });
