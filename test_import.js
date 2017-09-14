@@ -1,5 +1,5 @@
 let x = 10;
 
-export {x};
+export * from 'test_import2.js';
 
-export {a} from 'test_import2.js';
+export {x as newX, x};

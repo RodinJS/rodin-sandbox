@@ -9,6 +9,19 @@ class StringTokenizer {
         return this;
     }
 
+    addExportedVariable(label) {
+        this.add(0, `exports._${label} = void 0;\n`);
+        this.add(0, `Object.defineProperty(exports, '${label}', {
+            enumerable: true,
+            set: (value) => {
+                exports._${label} = value;
+                exports.emit('${label}', value);
+            },
+            get: () => exports._${label}
+        })\n\n`);
+        this.add(0, `exports.__labels__.add('${label}')\n`);
+    }
+
     remove(start, end) {
         this.changes.push({type: StringTokenizer.changeTypes.remove, index: start, end: end});
         return this;
@@ -52,7 +65,6 @@ class StringTokenizer {
     }
 }
 
-
 StringTokenizer.changeTypes = {
     add: 1,
     remove: 2
@@ -64,8 +76,10 @@ class File extends EventEmitter {
         this.url = url;
         this.exports = {};
         this.analyzer = null;
+        this.isReady = false;
 
         this.exportedValues = new EventEmitter();
+        this.exportedValues.__labels__ = new Set();
     }
 
     load() {
@@ -99,10 +113,17 @@ class File extends EventEmitter {
             const import_files = Array.from(new Set(this.analyzer.imports.map(i => `'${i.from}'`))).join(', ');
             const import_variables = imports.map(i => i.label).join(', ');
 
+            tokenizer.add(0, `// ${this.url}\n`);
             tokenizer.add(0, `${args.loadImports}([${import_files}],((_setters, ${import_variables})=>{\n`);
+            // todo: fix this later. no time now
             tokenizer.add(0, `
                 for(let i = 0; i < _setters.length; i ++) {
-                    _setters[i].from.on(_setters[i].name, newValue => eval(\`\${_setters[i].name} = newValue\`))
+                    _setters[i].from.on(_setters[i].name, newValue => {
+                        eval(\`\${_setters[i].name} = newValue\`);
+                        if(${args.exportedValues}.hasOwnProperty(_setters[i].name)) {
+                            ${args.exportedValues}[_setters[i].name] = newValue;
+                        }
+                    })
                 }
             `);
             tokenizer.add(0, `const exports = ${args.exportedValues};\n`);
@@ -121,19 +142,16 @@ class File extends EventEmitter {
             curIndex = -1;
             for (let i = 0; i < exports.length; i++) {
                 const exprt = exports[i];
+                if(exprt.from) {
+                    tokenizer.remove(exprt.exportBeginning, exprt.exportEnd);
+                    continue;
+                }
+
                 const name = exprt.name;
                 const label = exprt.label;
 
                 if (!processedNames[name]) {
-                    tokenizer.add(0, `exports._${label} = void 0;\n`);
-                    tokenizer.add(0, `Object.defineProperty(exports, '${label}', {
-                        enumerable: true,
-                        set: (value) => {
-                            exports._${label} = value;
-                            exports.emit('${label}', value);
-                        },
-                        get: () => exports._${label}
-                    })\n\n`);
+                    tokenizer.addExportedVariable(label);
                 } else {
                     tokenizer.add(0, `Object.defineProperty(exports, '${label}', {
                         enumerable: true,
@@ -163,6 +181,10 @@ class File extends EventEmitter {
                     }
                 }
 
+                if(exprt.isBrackets && !exprt.from) {
+                    tokenizer.add(exprt.exportEnd, `\nexports.${label} = ${name}\n`);
+                }
+
                 curIndex = exprt.exportIndex;
 
                 for (let j = 0; j < references.length; j++) {
@@ -185,7 +207,6 @@ class File extends EventEmitter {
             tokenizer.add(this.source.length, `\n}))`);
 
             this.transpiledSource = tokenizer.apply();
-            window.asd = this.transpiledSource;
             console.log(this.transpiledSource);
             resolve();
         });
