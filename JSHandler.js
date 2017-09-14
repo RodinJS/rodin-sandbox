@@ -89,8 +89,9 @@ class JSHandler extends EventEmitter {
             try {
                 eval(file.transpiledSource);
             } catch (err) {
-                throw new Error(err);
+                throw err;
             }
+
             resolve();
         });
     }

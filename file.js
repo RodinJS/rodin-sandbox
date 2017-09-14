@@ -92,7 +92,6 @@ class File extends EventEmitter {
 
     transpile(args) {
         return new Promise((resolve, reject) => {
-            console.time("transpile");
             const imports = this.analyzer.imports;
             const exports = this.analyzer.exports;
             const tokenizer = new StringTokenizer(this.source);
@@ -100,10 +99,10 @@ class File extends EventEmitter {
             const import_files = Array.from(new Set(this.analyzer.imports.map(i => `'${i.from}'`))).join(', ');
             const import_variables = imports.map(i => i.label).join(', ');
 
-            tokenizer.add(0, `${args.loadImports}([${import_files}],((setters, ${import_variables})=>{\n`);
+            tokenizer.add(0, `${args.loadImports}([${import_files}],((_setters, ${import_variables})=>{\n`);
             tokenizer.add(0, `
-                for(let i = 0; i < setters.length; i ++) {
-                    setters[i].from.on(setters[i].name, newValue => eval(\`\${setters[i].name} = newValue\`))
+                for(let i = 0; i < _setters.length; i ++) {
+                    _setters[i].from.on(_setters[i].name, newValue => eval(\`\${_setters[i].name} = newValue\`))
                 }
             `);
             tokenizer.add(0, `const exports = ${args.exportedValues};\n`);
@@ -140,7 +139,7 @@ class File extends EventEmitter {
                         enumerable: true,
                         get: () => exports.${processedNames[name]},
                     })`);
-                    tokenizer.add(0, `exports.on(${processedNames[name]}, value => {exports.${label} = value; })`);
+                    tokenizer.add(0, `\nexports.on('${processedNames[name]}', value => exports.emit('${label}', value))\n`);
 
                     continue;
                 }
@@ -152,25 +151,6 @@ class File extends EventEmitter {
                     references = this.analyzer.findReferences(name);
                 }
 
-
-                // if (exprt.isLet || exprt.isVar || exprt.isConst) {
-                //     tokenizer.remove(exprt.exportBeginning, exprt.exportBeginning + 6);
-                //
-                // } else if (exprt.isBrackets) {
-                //     if (curIndex !== exprt.exportIndex) {
-                //         tokenizer.remove(exprt.exportBeginning, exprt.exportEnd);
-                //     }
-                //     curIndex = exprt.exportIndex;
-                //-
-                //     tokenizer.add(this.source.length, `\nexports.${label} = ${name}`);
-                // } else if (exprt.isFunction || exprt.isGeneratorFunction) {
-                //     tokenizer.remove(exprt.exportBeginning, exprt.exportBeginning + 6);
-                // } else if (exprt.isDefault) {
-                //     tokenizer.replace(exprt.exportBeginning, exprt.exportEnd + 6, `exports.default = `);
-                // } else {
-                //
-                // }
-
                 if (curIndex !== exprt.exportIndex) {
                     if (exprt.isLet || exprt.isVar || exprt.isConst) {
                         tokenizer.remove(exprt.exportBeginning, exprt.exportBeginning + 6);
@@ -178,7 +158,6 @@ class File extends EventEmitter {
                         tokenizer.remove(exprt.exportBeginning, exprt.exportEnd);
                     } else if (exprt.isFunction || exprt.isGeneratorFunction || exprt.isClass) {
                         tokenizer.remove(exprt.exportBeginning, exprt.exportBeginning + 6);
-                        tokenizer.add(this.source.length, `\nexports.${label} = ${name};`);
                     } else if (exprt.isDefault) {
                         tokenizer.replace(exprt.exportBeginning, exprt.exportEnd + 6, `exports.default = `);
                     }
@@ -191,7 +170,7 @@ class File extends EventEmitter {
 
                     if (ref.declaration) {
                         if (ref.declaration === 'function' || ref.declaration === 'function*') {
-                            tokenizer.add(0, `exports.${label} = ${name};\n`);
+                            tokenizer.add(0, `exports._${label} = ${name};\n`);
                         } else if (ref.declaration === 'class') {
                             tokenizer.add(this.source.length, `\nexports.${label} = ${name};\n`);
                         } else if (ref.isOverride.value) {
@@ -206,8 +185,8 @@ class File extends EventEmitter {
             tokenizer.add(this.source.length, `\n}))`);
 
             this.transpiledSource = tokenizer.apply();
+            window.asd = this.transpiledSource;
             console.log(this.transpiledSource);
-            console.timeEnd('transpile');
             resolve();
         });
     }
