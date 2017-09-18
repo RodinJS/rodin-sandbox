@@ -10,16 +10,16 @@ class StringTokenizer {
     }
 
     addExportedVariable(label) {
-        this.add(0, `exports._${label} = void 0;\n`);
-        this.add(0, `Object.defineProperty(exports, '${label}', {
+        this.add(-1, `exports._${label} = void 0;\n`);
+        this.add(-1, `Object.defineProperty(exports, '${label}', {
             enumerable: true,
-            set: (value) => {
+            set: (value) => {     
                 exports._${label} = value;
-                exports.emit('${label}', value);
+                exports.emit('valuechange', {newValue: value, label: '${label}'});
             },
             get: () => exports._${label}
         })\n\n`);
-        this.add(0, `exports.__labels__.add('${label}')\n`);
+        this.add(-1, `exports.__labels__.add('${label}')\n`);
     }
 
     remove(start, end) {
@@ -33,6 +33,7 @@ class StringTokenizer {
     }
 
     apply() {
+
         const tmp = [];
 
         let curIndexOriginalString = 0;
@@ -44,6 +45,11 @@ class StringTokenizer {
             if (i.index !== j.index) {
                 return i.index - j.index;
             }
+
+            if (i.type !== j.type) {
+                return i.type - j.type
+            }
+
             return i.originalIndex - j.originalIndex;
         });
 
@@ -71,7 +77,7 @@ StringTokenizer.changeTypes = {
 };
 
 class File extends EventEmitter {
-    constructor(url) {
+    constructor(url, importers = new Set()) {
         super();
         this.url = url;
         this.exports = {};
@@ -80,6 +86,8 @@ class File extends EventEmitter {
 
         this.exportedValues = new EventEmitter();
         this.exportedValues.__labels__ = new Set();
+
+        this.importers = importers;
     }
 
     load() {
@@ -110,23 +118,32 @@ class File extends EventEmitter {
             const exports = this.analyzer.exports;
             const tokenizer = new StringTokenizer(this.source);
 
-            const import_files = Array.from(new Set(this.analyzer.imports.map(i => `'${i.from}'`))).join(', ');
+            const import_files = Array.from(
+                new Set(
+                    this.analyzer.imports.
+                    concat(this.analyzer.exports.filter(i => !!i.from)).map(i => `'${i.from}'`)
+                )
+            ).join(', ');
+
+
             const import_variables = imports.map(i => i.label).join(', ');
 
-            tokenizer.add(0, `// ${this.url}\n`);
-            tokenizer.add(0, `${args.loadImports}([${import_files}],((_setters, ${import_variables})=>{\n`);
+            tokenizer.add(-1, `// ${this.url}\n`);
+            tokenizer.add(-1, `${args.loadImports}([${import_files}],((_setters, ${import_variables})=>{\n`);
             // todo: fix this later. no time now
-            tokenizer.add(0, `
-                for(let i = 0; i < _setters.length; i ++) {
-                    _setters[i].from.on(_setters[i].name, newValue => {
-                        eval(\`\${_setters[i].name} = newValue\`);
-                        if(${args.exportedValues}.hasOwnProperty(_setters[i].name)) {
-                            ${args.exportedValues}[_setters[i].name] = newValue;
+            tokenizer.add(-1, `
+                for(let i in _setters) {
+                    _setters[i].from.on('valuechange', evt => {
+                        if(!_setters[i].imports[evt.label]) return;
+                        let shouldEmit = eval(\`\${evt.label} !== evt.newValue\`);
+                        eval(\`\${evt.label} = evt.newValue\`);          
+                        if(shouldEmit && ${args.exportedValues}.hasOwnProperty(evt.label)) {
+                            ${args.exportedValues}[evt.label] = evt.newValue;
                         }
                     })
                 }
             `);
-            tokenizer.add(0, `const exports = ${args.exportedValues};\n`);
+            tokenizer.add(-1, `const exports = ${args.exportedValues};\n`);
 
             let curIndex = -1;
             for (let i = 0; i < imports.length; i++) {
@@ -153,11 +170,11 @@ class File extends EventEmitter {
                 if (!processedNames[name]) {
                     tokenizer.addExportedVariable(label);
                 } else {
-                    tokenizer.add(0, `Object.defineProperty(exports, '${label}', {
+                    tokenizer.add(-1, `Object.defineProperty(exports, '${label}', {
                         enumerable: true,
                         get: () => exports.${processedNames[name]},
                     })`);
-                    tokenizer.add(0, `\nexports.on('${processedNames[name]}', value => exports.emit('${label}', value))\n`);
+                    tokenizer.add(-1, `\nexports.on('${processedNames[name]}', value => exports.emit('${label}', value))\n`);
 
                     continue;
                 }
@@ -192,9 +209,10 @@ class File extends EventEmitter {
 
                     if (ref.declaration) {
                         if (ref.declaration === 'function' || ref.declaration === 'function*') {
-                            tokenizer.add(0, `exports._${label} = ${name};\n`);
+                            tokenizer.add(-1, `exports._${label} = ${name};\n`);
                         } else if (ref.declaration === 'class') {
-                            tokenizer.add(this.source.length, `\nexports.${label} = ${name};\n`);
+                            // tokenizer.add(this.source.length, `\nexports.${label} = ${name};\n`);
+                            tokenizer.add(ref.declarationStart, `exports.${label} = `);
                         } else if (ref.isOverride.value) {
                             tokenizer.add(ref.isOverride.index + 1, `= exports.${label} `);
                         }
@@ -207,7 +225,7 @@ class File extends EventEmitter {
             tokenizer.add(this.source.length, `\n}))`);
 
             this.transpiledSource = tokenizer.apply();
-            console.log(this.transpiledSource);
+            // console.log(this.transpiledSource);
             resolve();
         });
     }

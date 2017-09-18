@@ -185,7 +185,6 @@ class Graph {
 
         dfs(0);
 
-
         this._isAnalyzed = true;
     }
 
@@ -219,13 +218,23 @@ const path = {
         return path.startsWith('/') || path.startsWith('http://') || path.startsWith('https://')
     },
     join: (...args) => {
-        return path.normalize(args.reduce((a, b) => a += `/${b}`, ''));
+        return path.normalize(args.filter(i => i !== '').join('/'))
     },
     getDirectory: (path) => {
         return path.substring(0, path.lastIndexOf('/'));
     },
-    normalize: (path) => {
-        const paths = path.split('/');
+    normalize: (_path) => {
+        let absolutePrefix = '';
+        if (path.isAbsolute(_path)) {
+            for (let i of ['/', 'http://', 'https://']) {
+                if (_path.startsWith(i)) {
+                    _path = _path.substring(i.length);
+                    absolutePrefix = i;
+                }
+            }
+        }
+
+        const paths = _path.split('/');
         const res = [];
         for (let i = 0; i < paths.length; i++) {
             switch (paths[i]) {
@@ -239,6 +248,6 @@ const path = {
                     res.push(paths[i]);
             }
         }
-        return res.join('/');
+        return absolutePrefix + res.join('/');
     }
 };
