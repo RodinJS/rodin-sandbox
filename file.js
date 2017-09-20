@@ -77,7 +77,7 @@ StringTokenizer.changeTypes = {
 };
 
 class File extends EventEmitter {
-    constructor(url, importers = new Set()) {
+    constructor(url, importHistory = new Set()) {
         super();
         this.url = url;
         this.exports = {};
@@ -87,7 +87,12 @@ class File extends EventEmitter {
         this.exportedValues = new EventEmitter();
         this.exportedValues.__labels__ = new Set();
 
-        this.importers = importers;
+        this.importHistory = importHistory;
+
+        this._isLoaded = false;
+        this._isAnalyzed = false;
+        this._isTranspiled = false;
+        this._isRun = false;
     }
 
     load() {
@@ -95,6 +100,7 @@ class File extends EventEmitter {
             // todo: handle errors
             ajax.get(this.url, {}, (data) => {
                 this.source = data;
+                this._isLoaded = true;
                 resolve(data);
             });
         });
@@ -108,6 +114,8 @@ class File extends EventEmitter {
             this.analyzer.analyzeFunctionParams();
             this.analyzer.findImports();
             this.analyzer.findExports();
+
+            this._isAnalyzed = true;
             resolve();
         });
     }
@@ -226,6 +234,7 @@ class File extends EventEmitter {
 
             this.transpiledSource = tokenizer.apply();
             // console.log(this.transpiledSource);
+            this._isTranspiled = true;
             resolve();
         });
     }

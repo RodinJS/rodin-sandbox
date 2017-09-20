@@ -1,3 +1,4 @@
-export let x = 10;
+import {x as a} from 'test_import.js';
+import {y} from 'test_import2.js'
 
-setInterval(() => { console.log('test', x); x++}, 1000);
+export let x = a + y;

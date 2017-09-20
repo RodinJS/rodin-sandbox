@@ -14,6 +14,7 @@ const getAbsoluteUrl = (from, url) => {
     return path.join(path.getDirectory(from), url);
 };
 
+
 class JSHandler extends EventEmitter {
     constructor(url) {
         super();
@@ -21,24 +22,19 @@ class JSHandler extends EventEmitter {
         this.url = url;
         this.files = {};
 
-
         this.handleUrl(new Set(), '', url);
     }
 
-    handleUrl(importers, from, url) {
+    handleUrl(importHistory, from, url) {
         return new Promise((resolve, reject) => {
             const absoluteURL = getAbsoluteUrl(from, url);
 
-            if (this.files.hasOwnProperty(absoluteURL)) {
+            if (this.files[absoluteURL]) {
 
                 const file = this.files[absoluteURL];
-                file.importers = new Set([...file.importers, ...importers, from]);
+                // file.importHistory = new Set([...file.importHistory, ...importHistory, from]);
 
-                if (file.importers.has(absoluteURL)) {
-                    return resolve(file);
-                }
-
-                if (file.isReady) {
+                if (file.isReady || importHistory.has(absoluteURL)) {
                     resolve(file);
                 } else {
                     file.on('ready', () => {
@@ -49,8 +45,8 @@ class JSHandler extends EventEmitter {
                 return;
             }
 
-            const file = new File(absoluteURL, new Set(importers));
-            file.importers.add(from);
+            const file = new File(absoluteURL, new Set(importHistory));
+            file.importHistory.add(from);
             this.files[absoluteURL] = file;
 
             file.load().then(() => {
@@ -61,15 +57,16 @@ class JSHandler extends EventEmitter {
                     exportedValues: 'file.exportedValues',
                 });
             }).then(() => {
-                return this.eval(file, from);
+                // console.log(`evaling ${file.url}`);
+                return this.eval(importHistory, file, from);
             }).then(() => {
-                resolve(file);
+                return resolve(file);
             });
         });
     }
 
 
-    eval(file, from) {
+    eval(importHistory, file, from) {
         return new Promise((resolve, reject) => {
 
             const make_imports_work_and_shit = (imports_array, runCode) => {
@@ -80,16 +77,15 @@ class JSHandler extends EventEmitter {
                     }
                 }
 
-                const n = imports_array.length; //+ forwards.length;
+                const n = imports_array.length;
                 let readyCount = 0;
 
                 const checkIfAllIsDone = () => {
                     readyCount++;
+
                     if (readyCount >= n) {
 
                         const curImports = [];
-                        // const setters = [];
-
                         const setters = {};
 
                         for (let i = 0; i < file.analyzer.imports.length; i++) {
@@ -112,8 +108,14 @@ class JSHandler extends EventEmitter {
                                 setters[key].imports[file.analyzer.imports[i].name] = file.analyzer.imports[i].label;
                             }
                         }
+                        // console.log(`Running code for ${file.url}`);
 
+                        // if (!file._isRun){
+                        file._isRun = true;
                         runCode(setters, ...curImports);
+                        // } else {
+                        //
+                        // }
 
                         const forwardExport = (fromUrl, name, label) => {
 
@@ -164,37 +166,49 @@ class JSHandler extends EventEmitter {
                         resolve();
                     }
                 };
+                importHistory = new Set(importHistory);
+                importHistory.add(file.url);
 
-                // for (let i = 0; i < imports_array.length; i++) {
-                //     this.handleUrl(file.importers, file.url, imports_array[i]).then((file) => {
+                let promises = [];
+                for (let i = 0; i < imports_array.length; i++) {
+                    // this.handleUrl(file.importHistory, file.url, imports_array[i]).then(() => {
+                    //     checkIfAllIsDone();
+                    // });
+
+                    promises.push(this.handleUrl(importHistory, file.url, imports_array[i]))
+                }
+
+                Promise.all(promises).then((res) => {
+                    readyCount = n;
+                    console.log(`All done for ${file.url}`);
+                    console.log(Array.from(importHistory).map(i => i.split('/')[i.split('/').length - 2] + '/' + i.split('/')[i.split('/').length - 1]));
+                    checkIfAllIsDone();
+                });
+
+                // let fi = 0;
+                //
+                // const _handleURL = (...args) => {
+                //     this.handleUrl(...args).then(() => {
+                //         fi++;
+                //
+                //         if(fi < imports_array.length) {
+                //             _handleURL(file.importHistory, file.url, imports_array[fi]);
+                //         }
+                //
                 //         checkIfAllIsDone();
                 //     });
+                // };
+                //
+                // if (imports_array.length > 0) {
+                //     _handleURL(file.importHistory, file.url, imports_array[fi]);
                 // }
 
-                let fi = 0;
-
-                const _handleURL = (...args) => {
-                    this.handleUrl(...args).then(() => {
-                        fi++;
-
-                        if(fi < imports_array.length) {
-                            _handleURL(file.importers, file.url, imports_array[fi]);
-                        }
-
-                        checkIfAllIsDone();
-                    });
-
-                };
-
-                if (imports_array.length > 0)
-                    _handleURL(file.importers, file.url, imports_array[fi]);
-
-                if (n === 0) {
-                    checkIfAllIsDone();
-                }
+                // if (n === 0) {
+                //     checkIfAllIsDone();
+                // }
             };
 
-            console.log('eval', from, file.url);
+            // console.log('eval', from, file.url);
             try {
                 eval(file.transpiledSource);
             } catch (err) {

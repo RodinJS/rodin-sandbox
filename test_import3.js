@@ -1,3 +1,1 @@
-import {x} from 'test_import4.js';
-
-export {x};
+export let x = 10;

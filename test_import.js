@@ -1,2 +1,1 @@
-export * from 'test_import2.js';
-console.log('asd');
+export * from 'test_import3.js';

@@ -1,6 +1,5 @@
 // import {x} from 'test2.js';
-// let a = 10;
-// export {a as x}
+//
 // console.log(x);
 
 // import {x} from 'test2.js';
