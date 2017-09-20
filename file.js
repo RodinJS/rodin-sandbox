@@ -77,7 +77,7 @@ StringTokenizer.changeTypes = {
 };
 
 class File extends EventEmitter {
-    constructor(url, importHistory = new Set()) {
+    constructor(url) {
         super();
         this.url = url;
         this.exports = {};
@@ -87,7 +87,7 @@ class File extends EventEmitter {
         this.exportedValues = new EventEmitter();
         this.exportedValues.__labels__ = new Set();
 
-        this.importHistory = importHistory;
+        this.dependencies = null;
 
         this._isLoaded = false;
         this._isAnalyzed = false;
@@ -126,18 +126,17 @@ class File extends EventEmitter {
             const exports = this.analyzer.exports;
             const tokenizer = new StringTokenizer(this.source);
 
-            const import_files = Array.from(
+            this.dependencies = Array.from(
                 new Set(
                     this.analyzer.imports.
-                    concat(this.analyzer.exports.filter(i => !!i.from)).map(i => `'${i.from}'`)
+                    concat(this.analyzer.exports.filter(i => !!i.from)).map(i => `${i.from}`)
                 )
-            ).join(', ');
-
+            );
 
             const import_variables = imports.map(i => i.label).join(', ');
 
             tokenizer.add(-1, `// ${this.url}\n`);
-            tokenizer.add(-1, `${args.loadImports}([${import_files}],((_setters, ${import_variables})=>{\n`);
+            tokenizer.add(-1, `${args.loadImports}([${this.dependencies.map(i=>`'${i}'`).join(', ')}],((_setters, ${import_variables})=>{\n`);
             // todo: fix this later. no time now
             tokenizer.add(-1, `
                 for(let i in _setters) {
@@ -235,6 +234,7 @@ class File extends EventEmitter {
             this.transpiledSource = tokenizer.apply();
             // console.log(this.transpiledSource);
             this._isTranspiled = true;
+            this.emit('transpiled', {});
             resolve();
         });
     }
