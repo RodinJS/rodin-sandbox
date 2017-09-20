@@ -813,7 +813,11 @@ class StaticAnalyzer {
         }
 
         while (j < this.source.length && j >= 0) {
-            if (skipComments && curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
+            if (((skipComments &&
+                    (this._commentsAndStringsTypes[curCommentIndex] === 4 || this._commentsAndStringsTypes[curCommentIndex] === 5)) ||
+                    (skipStrings &&
+                        (this._commentsAndStringsTypes[curCommentIndex] === 1 || this._commentsAndStringsTypes[curCommentIndex] === 2 || this._commentsAndStringsTypes[curCommentIndex] === 6))) &&
+                curCommentIndex >= 0 && curCommentIndex < this._commentsAndStrings.length &&
                 this._commentsAndStrings[curCommentIndex][0] <= j && j <= this._commentsAndStrings[curCommentIndex][1]) {
 
                 j = this._commentsAndStrings[curCommentIndex][direction === 1 ? 1 : 0];
@@ -1355,7 +1359,8 @@ class StaticAnalyzer {
                 currLabelLength: 0,
                 importType: '',
                 nonCodeSkipped: false,
-                from: null
+                from: null,
+                isFirstStart: true
             };
 
             const saveVar = () => {
@@ -1376,6 +1381,7 @@ class StaticAnalyzer {
                     isBrackets: memory.importType === 'brackets',
                     isDefault: memory.importType === 'default',
                     isAll: memory.importType === '*',
+                    isES5: memory.importType === 'es5',
                     from: memory.from
                 })
             };
@@ -1390,14 +1396,27 @@ class StaticAnalyzer {
 
             let state = states.start;
 
+            let checkES5Import = true;
             while (i < this.source.length) {
                 let j;
                 j = this.skipNonCode(i, cciObject, 1, true, true, true, false);
                 memory.nonCodeSkipped = i !== j;
                 i = j;
 
-                const currChar = this.source.charAt(i);
+                if(checkES5Import) {
+                    const nextString = this._commentsAndStrings[this.nextString(i)];
+                    if(i === nextString[0]) {
+                        memory.importType = 'es5';
+                        memory.importEnd = nextString[1];
+                        memory.from = this.source.substring(nextString[0] + 1, nextString[1] - 1);
+                        saveVar();
+                        state = states.end;
+                    }
+                }
 
+                checkES5Import = false;
+
+                const currChar = this.source.charAt(i);
                 switch (state) {
                     /**
                      * Checks import type
@@ -1738,7 +1757,7 @@ class StaticAnalyzer {
 
             const declarationType = this.isSubstringInArray(index, declarationTypes, -1);
 
-            if(declarationType) {
+            if (declarationType) {
                 params.start = index - declarationType.length;
             }
             return declarationType;
@@ -1754,10 +1773,10 @@ class StaticAnalyzer {
             const params = {cci: NaN};
             while (start >= 0) {
                 const cur = this.source.charCodeAt(start);
-                if(jsDelimiterChars.indexOf(cur) !== -1) {
-                    if(cur === '.'.charCodeAt(0))
+                if (jsDelimiterChars.indexOf(cur) !== -1) {
+                    if (cur === '.'.charCodeAt(0))
                         return false;
-                    if(cur === ','.charCodeAt(0) || cur === '{'.charCodeAt(0))
+                    if (cur === ','.charCodeAt(0) || cur === '{'.charCodeAt(0))
                         break;
                     else
                         return false;
@@ -1766,10 +1785,10 @@ class StaticAnalyzer {
                 start = this.skipNonCode(start - 1, params, -1);
             }
 
-            while(end < this.source.length) {
+            while (end < this.source.length) {
                 const cur = this.source.charCodeAt(end);
-                if(jsDelimiterChars.indexOf(cur) !== -1) {
-                    if(cur === ':'.charCodeAt(0))
+                if (jsDelimiterChars.indexOf(cur) !== -1) {
+                    if (cur === ':'.charCodeAt(0))
                         break;
                     else
                         return false;
@@ -1788,8 +1807,14 @@ class StaticAnalyzer {
                 const declaration = getDeclarationType(index, this.findScope(index), isOverride, params);
                 const scopeType = declarationTypeScopes[declarationTypes.indexOf(declaration)];
                 const scope = this.findScope(index, scopeType, true);
-                references.push({index, isOverride: Object.assign({}, isOverride), declaration, scope, scopeType, declarationStart: params.start});
-
+                references.push({
+                    index,
+                    isOverride: Object.assign({}, isOverride),
+                    declaration,
+                    scope,
+                    scopeType,
+                    declarationStart: params.start
+                });
                 if (declaration && scope !== 0) {
                     this._es6ScopeGraph.dfs(scope => {
                         scopesToIgnore[scope] = 1;
@@ -1806,7 +1831,6 @@ class StaticAnalyzer {
 
             ret.push(ref);
         }
-
         return ret;
     }
 

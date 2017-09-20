@@ -105,7 +105,7 @@ class JSHandler extends EventEmitter {
                             curImports.push(this.files[curUrl].exportedValues);
                         } else if (file.analyzer.imports[i].isDefault) {
                             curImports.push(this.files[curUrl].exportedValues.default)
-                        } else {
+                        } else if(!file.analyzer.imports[i].isES5) {
                             curImports.push(this.files[curUrl].exportedValues[file.analyzer.imports[i].name]);
                             const key = getId(this.files[curUrl].exportedValues);
                             if (!setters[key]) {
@@ -123,7 +123,7 @@ class JSHandler extends EventEmitter {
                     // if (!file._isRun){
                     file._isRun = true;
                     // console.log(`running ${file.url}`);
-                    runCode(setters, ...curImports);
+                    runCode.bind(window)(setters, ...curImports);
 
                     const forwardExport = (fromUrl, name, label) => {
 

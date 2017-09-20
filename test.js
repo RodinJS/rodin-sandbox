@@ -2,10 +2,11 @@
 //
 // console.log(x);
 
-// import {x} from 'test2.js';
+// import {} from 'tmp.js';
 // setInterval(() => console.log('test', x), 1000);
 
-// import 'https://cdnjs.cloudflare.com/ajax/libs/three.js/87/three.min.js';
+import 'https://cdnjs.cloudflare.com/ajax/libs/three.js/87/three.js';
+
 // import 'http://192.168.0.31:8000/dist/vendor/vendor.js';
 import * as RODIN from 'http://192.168.0.31:8000/src/core/index.js';
 

@@ -133,10 +133,10 @@ class File extends EventEmitter {
                 )
             );
 
-            const import_variables = imports.map(i => i.label).join(', ');
+            const import_variables = imports.filter(i => !i.isES5).map(i => i.label).join(', ');
 
             tokenizer.add(-1, `// ${this.url}\n`);
-            tokenizer.add(-1, `${args.loadImports}([${this.dependencies.map(i=>`'${i}'`).join(', ')}],((_setters, ${import_variables})=>{\n`);
+            tokenizer.add(-1, `${args.loadImports}([${this.dependencies.map(i=>`'${i}'`).join(', ')}],(function (_setters, ${import_variables}){\n`);
             // todo: fix this later. no time now
             tokenizer.add(-1, `
                 for(let i in _setters) {
@@ -189,6 +189,7 @@ class File extends EventEmitter {
                 processedNames[name] = label;
 
                 let references = [];
+
                 if (!exprt.isDefault) {
                     references = this.analyzer.findReferences(name);
                 }
