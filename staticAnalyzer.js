@@ -6,79 +6,10 @@ const operatorWords = ['instanceof', 'delete', 'typeof', 'void', 'in'];
 const assignmentOperators = ['=', '+=', '-=', '*=', '/=', '%=', '&=', '^=', '|=', '**=', '>>=', '<<=', '>>>='];
 const unaryOperators = ['++', '--'];
 
-const commentNeedles = ['//', '\n', '/*', '*/', '\'', '"', '`', '${', '}', '/'];
-const scopeNeedles = ['{', '}'];
-
-const findComments = (source) => {
-    const commentRegex = /((?:\/\*(?:[^*]|(?:\*+[^*\/]))*\*+\/)|(?:\/\/.{0,})|(\'[^']{0,}[^\\]{0,1}\')|(\"[^"]{0,}[^\\]{0,1}\")|(\`.{0,}[^\\]{0,1}\$\{|\`\$\{)|(\}[^`]{0,}[^\\]{0,1}\`)|\/[^\/]{0,}[^\\]\/[gimX]{0,}(?=\s{0,}[;\,\)\=\+\-\.\n]|$))/gm;
-    const res = [];
-    // not efficient at all CHANGE THIS
-    source.replace(commentRegex, (...args) => {
-        let i = 1;
-        while (typeof args[i] !== 'number') i++;
-        res.push([args[i], args[i] + args[0].length]);
-        return '';
-    });
-    return res;
-};
-
-const findNeedles = (source, needles) => {
-    const needlePositions = [];
-    for (let i = 0; i < needles.length; i++) {
-        needlePositions.push(... find(source, needles[i]));
-    }
-    needlePositions.sort((a, b) => a[0] - b[0]);
-    return needlePositions;
-};
-
-// debugging stuff
-
-const loadTHREEJS = (cb, isMin = false) => {
-    ajax.get(`https://cdnjs.cloudflare.com/ajax/libs/three.js/86/three${isMin ? '.min' : ''}.js`, {}, source => {
-        cb(source);
-    })
-};
-
-const loadJQUERY = (cb, isMin = false) => {
-    ajax.get(`https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery${isMin ? '.min' : ''}.js`, {}, source => {
-        cb(source);
-    })
-};
-
-const loadD3 = (cb, isMin = false) => {
-    ajax.get(`https://cdnjs.cloudflare.com/ajax/libs/d3/4.9.1/d3${isMin ? '.min' : ''}.js`, {}, source => {
-        cb(source);
-    })
-};
-
-const loadOtherJS = (cb) => {
-    ajax.get(`https://cdn.rodin.io/v0.0.7-dev/core/sculpt/Sculpt.js`, {}, source => {
-        cb(source);
-    })
-};
-
-// end debugging stuff
-
-const reduce = (source, needles) => {
-    const reducedSourceArray = new Array(needles.length);
-    const reduceMap = [];
-
-    for (let i = 0; i < needles.length; i++) {
-        reducedSourceArray[i] = needles[i][1];
-        for (let j = 0; j < reducedSourceArray[i].length; j++) {
-            reduceMap.push(needles[i][0]);
-        }
-    }
-
-    const reducedSource = reducedSourceArray.join('');
-    return [reducedSource, reduceMap];
-};
-
 class StaticAnalyzer {
     constructor(source) {
         this.source = source;
         this._commentsAndStringsAnalyzed = false;
-        this._lca = null;
         this._es6Scopes = null;
         this._es5Scopes = null;
         this._scopeData = [];
@@ -102,9 +33,9 @@ class StaticAnalyzer {
         let strArr = [];
         const skipParams = {cci: null};
         a = this.skipNonCode(a, skipParams, -1);
-        if (this.source.charCodeAt(a) === '.'.charCodeAt(0) ||
-            this.source.charCodeAt(a) === '('.charCodeAt(0) ||
-            this.source.charCodeAt(a) === '['.charCodeAt(0)) {
+        if (this.source.charCodeAt(a) === 46 /* '.'.charCodeAt(0) */ ||
+            this.source.charCodeAt(a) === 40 /* '('.charCodeAt(0) */ ||
+            this.source.charCodeAt(a) === 91 /* '['.charCodeAt(0) */) {
             return false;
         }
         while (true) {
@@ -123,12 +54,13 @@ class StaticAnalyzer {
         }
         let operatorStr = strArr.reverse().join('');
         strArr = [];
+
         if (doEvalCheck(operatorStr)) {
             skipParams.cci = null;
             a = this.skipNonCode(index, skipParams);
-            if (this.source.charCodeAt(a) === '.'.charCodeAt(0) ||
-                this.source.charCodeAt(a) === '('.charCodeAt(0) ||
-                this.source.charCodeAt(a) === '['.charCodeAt(0)) {
+            if (this.source.charCodeAt(a) === 46 /* '.'.charCodeAt(0) */ ||
+                this.source.charCodeAt(a) === 40 /* '('.charCodeAt(0) */ ||
+                this.source.charCodeAt(a) === 91 /* '['.charCodeAt(0) */) {
                 return false;
             }
             while (true) {
@@ -162,12 +94,6 @@ class StaticAnalyzer {
 
         const scopeGraph = [];
 
-        const scopeStack = [];
-        let scopeStackSize = 0;
-
-        this._scopeString = '';
-
-
         this._commentsAndStrings = commentsAndStrings;
         this._commentsAndStringsTypes = commentAndStringTypes;
         this._commentsAndStringsAnalyzed = true;
@@ -187,10 +113,7 @@ class StaticAnalyzer {
         };
 
         const jsOneLiners = ['if', 'for', 'while'];
-
         const charsBeforeRegex = ['=', '+', '-', '/', '*', '%', '(', '[', ';', ':', '{', '}', '\n', '\r', ',', '!', '&', '|', '^', '?', '>', '<'];
-        const charsAfterRegex = ['=', '+', '-', '/', '*', '%', ')', ']', ';', ',', '}'];
-
         const wordsBeforeRegex = ['return', 'yield', 'typeof', 'case', 'do', 'else'];
 
         const length = this.source.length;
@@ -200,14 +123,12 @@ class StaticAnalyzer {
         let inLiteralString = false;
 
         let start = null;
-        let scopeStart = null;
 
         let literalStringStackSize = 0;
 
         const skipNonCode = (j) => {
             let resI = commentsAndStrings.length - 1;
-            while (j >= 0 && (this.source.charCodeAt(j) <= 32 || /* || this.source.charCodeAt(j) === 10 || /!*this.source.charCodeAt(j) === 9 ||*!/*/
-                (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j))) {
+            while (j >= 0 && (this.source.charCodeAt(j) <= 32 || (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j))) {
                 j--;
                 if (resI >= 0 && commentsAndStrings[resI][0] < j && commentsAndStrings[resI][1] > j) {
                     j = commentsAndStrings[resI][0] - 1;
@@ -255,9 +176,7 @@ class StaticAnalyzer {
                     j--;
                 }
                 const wordStart = j + 1;
-                //console.log(this.source.substring(wordStart, wordEnd));
 
-                // refactor this if, better ways to write it as a single expression
                 if (roundBrackets && jsOneLiners.indexOf(this.source.substring(wordStart, wordEnd)) !== -1) {
                     return true;
                 } else if (!roundBrackets && wordsBeforeRegex.indexOf(this.source.substring(wordStart, wordEnd)) !== -1) {
@@ -269,40 +188,11 @@ class StaticAnalyzer {
             return true;
         };
 
-        const es5Scopes = ['function', 'function*'];
-        const sourceContainsFrom = (arr, j) => {
-            const len = arr.length;
-            let i = 0;
-            let cur = '';
-            let curLength = 0;
-            while (i < len) {
-                if (curLength !== arr[i].length) {
-                    curLength = arr[i].length;
-                    cur = this.source.substr(j - arr[i].length + 1, arr[i].length);
-                }
-                if (cur === arr[i]) {
-                    return i;
-                }
-
-                i++;
-            }
-            return -1;
-        };
-
-        const bracketStack = [];
-
-        const brackets = [
-            '['.charCodeAt(0), '('.charCodeAt(0), '{'.charCodeAt(0), -1 /*single line scope*/,
-            ']'.charCodeAt(0), ')'.charCodeAt(0), '}'.charCodeAt(0), -2 /*single line scope*/,
-        ];
-
         const saveResult = (end = i) => {
             instances.push(this.source.substring(start, end + 1));
             commentsAndStrings.push([start, end + 1]);
             commentAndStringTypes.push(state);
         };
-
-        let isOneLinerEnter = false;
 
         while (i < length) {
             const cur = this.source.charCodeAt(i);
@@ -310,32 +200,25 @@ class StaticAnalyzer {
             switch (state) {
                 case s.anything:
 
-                    // if (isOneLinerEnter && bracketStack[bracketStack.length - 1] === -1 &&
-                    //     oneLinerSplitters.indexOf(this.source.charCodeAt(i)) === -1) {
-                    //     isOneLinerEnter = false;
-                    //     // todo: check if this saves one more character after the scope
-                    //     saveScope(-2, StaticAnalyzer.scopeTypes.expression);
-                    // }
-
                     start = i;
-                    if (cur === '/'.charCodeAt(0)) {
+                    if (cur === 47 /* '/'.charCodeAt(0) */) {
                         state = s.afterSlash;
-                    } else if (cur === '"'.charCodeAt(0) || cur === '\''.charCodeAt(0)) {
+                    } else if (cur === 34 /* '"'.charCodeAt(0) */ || cur === 39 /* '\''.charCodeAt(0) */) {
                         state = s.string;
                         stringType = cur;
-                    } else if (cur === '`'.charCodeAt(0)) {
+                    } else if (cur === 96 /* '`'.charCodeAt(0) */) {
                         literalStringStackSize++;
                         state = s.literalString;
-                    } else if (inLiteralString && cur === '}'.charCodeAt(0)) {
+                    } else if (inLiteralString && cur === 125 /* '}'.charCodeAt(0) */) {
                         state = s.literalString;
                         inLiteralString = false;
                     }
 
                     break;
                 case s.afterSlash:
-                    if (cur === '/'.charCodeAt(0)) {
+                    if (cur === 47 /* '/'.charCodeAt(0) */) {
                         state = s.comment;
-                    } else if (cur === '*'.charCodeAt(0)) {
+                    } else if (cur === 42 /* '*'.charCodeAt(0) */) {
                         state = s.multilineComment;
                     } else if (regexPrefixCheck()) {
                         state = s.regex;
@@ -346,13 +229,13 @@ class StaticAnalyzer {
                     }
                     break;
                 case s.comment:
-                    if (cur === '\n'.charCodeAt(0) || i === length - 1) {
+                    if (cur === 10 /* '\n'.charCodeAt(0) */ || i === length - 1) {
                         saveResult();
                         state = s.anything;
                     }
                     break;
                 case s.multilineComment:
-                    if (cur === '*'.charCodeAt(0) && this.source.charCodeAt(i + 1) === '/'.charCodeAt(0)) {
+                    if (cur === 42 /* '*'.charCodeAt(0) */ && this.source.charCodeAt(i + 1) === 47 /* '/'.charCodeAt(0) */) {
                         i++;
                         saveResult(i);
                         state = s.anything;
@@ -360,27 +243,27 @@ class StaticAnalyzer {
                     break;
                 case s.regex:
 
-                    if (cur === '\\'.charCodeAt(0)) {
+                    if (cur === 92 /* '\\'.charCodeAt(0) */) {
                         i++;
-                    } else if (cur === '\n'.charCodeAt(0)) {
+                    } else if (cur === 10 /* '\n'.charCodeAt(0) */) {
                         state = s.anything;
                         i = start;
-                    } else if (cur === '['.charCodeAt(0)) {
+                    } else if (cur === 91 /* '['.charCodeAt(0) */) {
                         state = s.squareBracketsRegex;
-                    } else if (cur === '/'.charCodeAt(0)) {
+                    } else if (cur === 47 /* '/'.charCodeAt(0) */) {
                         saveResult();
                         state = s.anything;
                     }
                     break;
                 case s.squareBracketsRegex:
-                    if (cur === '\\'.charCodeAt(0)) {
+                    if (cur === 92 /* '\\'.charCodeAt(0) */) {
                         i++;
-                    } else if (cur === ']'.charCodeAt(0)) {
+                    } else if (cur === 93 /* ']'.charCodeAt(0) */) {
                         state = s.regex;
                     }
                     break;
                 case s.string:
-                    if (cur === '\\'.charCodeAt(0)) {
+                    if (cur === 92 /* '\\'.charCodeAt(0) */) {
                         i++;
                     } else if (cur === stringType) {
                         saveResult();
@@ -388,14 +271,14 @@ class StaticAnalyzer {
                     }
                     break;
                 case s.literalString:
-                    if (cur === '\\'.charCodeAt(0)) {
+                    if (cur === 92 /* '\\'.charCodeAt(0) */) {
                         i++;
-                    } else if (cur === '$'.charCodeAt(0) && this.source.charCodeAt(i + 1) === '{'.charCodeAt(0)) {
+                    } else if (cur === 36 /* '$'.charCodeAt(0) */ && this.source.charCodeAt(i + 1) === 123 /* '{'.charCodeAt(0) */) {
                         i++;
                         saveResult();
                         state = s.anything;
                         inLiteralString = true;
-                    } else if (cur === '`'.charCodeAt(0)) {
+                    } else if (cur === 96 /* '`'.charCodeAt(0) */) {
                         saveResult();
                         literalStringStackSize--;
                         if (literalStringStackSize) {
@@ -439,11 +322,6 @@ class StaticAnalyzer {
             return bracketStack.pop();
         };
 
-
-        const s = {
-            anything: 0
-        };
-
         const bracketMap = {
             ['('.charCodeAt(0)]: ')'.charCodeAt(0),
             ['['.charCodeAt(0)]: ']'.charCodeAt(0),
@@ -457,7 +335,6 @@ class StaticAnalyzer {
             [-4]: -3
         };
 
-        let state = s.anything;
         let curCommentIndex = {cci: null};
         const es5Functions = ['function', 'function*'];
 
@@ -552,7 +429,7 @@ class StaticAnalyzer {
                     let openingRoundBracket = null;
 
                     // a=>{}
-                    if (this.source.charCodeAt(c) !== ')'.charCodeAt(0)) {
+                    if (this.source.charCodeAt(c) !== 41 /* ')'.charCodeAt(0) */) {
                         closingRoundBracket++;
                         c = this.getWordFromIndex(c)[0];
                         // todo: figure out if this if j or j+1
@@ -563,7 +440,7 @@ class StaticAnalyzer {
                         openingRoundBracket = c + 1;
                     }
                     scopeStart = openingRoundBracket;
-                    if (this.source.charCodeAt(i) !== '{'.charCodeAt(0)) {
+                    if (this.source.charCodeAt(i) !== 123 /* '{'.charCodeAt(0) */) {
                         // revert back one character so things like ({}) will work
                         i -= 2;
                         curCommentIndex.cci = null;
@@ -591,7 +468,7 @@ class StaticAnalyzer {
 
                     // i++;
 
-                    if (this.source.charCodeAt(i) !== '{'.charCodeAt(0)) {
+                    if (this.source.charCodeAt(i) !== 123 /* '{'.charCodeAt(0) */) {
                         // revert back one character so things like ({}) will work
                         // not sure if -=2 or -=1
                         i -= 2;
@@ -604,12 +481,12 @@ class StaticAnalyzer {
             }
 
 
-            if (bracket === '{'.charCodeAt(0)) {
+            if (bracket === 123 /* '{'.charCodeAt(0) */) {
                 isOpening = true;
                 j = this.skipNonCode(--j, cOBJ, -1);
 
                 // checking if the scope is a function
-                if (this.source.charCodeAt(j) === ')'.charCodeAt(0)) {
+                if (this.source.charCodeAt(j) === 41 /* ')'.charCodeAt(0) */) {
                     scopeData = checkIfClassOrFunction(j, 0); // check for a function
                     if (scopeData[1]) {
                         scopeStart = scopeData[1][0];
@@ -617,10 +494,9 @@ class StaticAnalyzer {
                 } else {
                     scopeData = checkIfClassOrFunction(j, 1); // check for a class
                 }
-
             }
 
-            if (bracket === '}'.charCodeAt(0)) {
+            if (bracket === 125 /* '}'.charCodeAt(0) */) {
                 isOpening = false;
                 if (this._scopeData[scopeStart[scopeStack.length - 1]] &&
                     this._scopeData[scopeStart[scopeStack.length - 1]][0] === StaticAnalyzer.scopeTypes.destruction) {
@@ -629,7 +505,7 @@ class StaticAnalyzer {
                 } else {
                     j = this.skipNonCode(++j, cOBJ);
 
-                    if (this.source.charCodeAt(j) === '='.charCodeAt(0)) {
+                    if (this.source.charCodeAt(j) === 61 /* '='.charCodeAt(0) */) {
                         scopeType = StaticAnalyzer.scopeTypes.destruction;
                         this._scopeData[scopeStack[scopeStackSize - 1]] = [scopeType];
                         this._destructions.push(i);
@@ -639,10 +515,6 @@ class StaticAnalyzer {
 
             if (isOpening) {
                 bracketStack.push(bracket);
-
-                // we put everything in es6 scopes since it contains all other types
-                // then we distinguish them later.
-                const scopes = this._es6Scopes;
 
                 // add new scope we just found to the graph
                 es6ScopeGraph.push([]);
@@ -692,26 +564,20 @@ class StaticAnalyzer {
         while (i < n) {
             const cur = this.source.charCodeAt(i);
 
-            if (cur === '{'.charCodeAt(0)) {
+            if (cur === 123 /* '{'.charCodeAt(0) */) {
                 saveScope(cur);
-            } else if (cur === '}'.charCodeAt(0)) {
+            } else if (cur === 125 /* '}'.charCodeAt(0) */) {
                 saveScope(cur);
-            } else if (cur === '='.charCodeAt(0) && this.source.charCodeAt(i + 1) === '>'.charCodeAt(0)) {
+            } else if (cur === 61 /* '='.charCodeAt(0) */ && this.source.charCodeAt(i + 1) === 62 /* '>'.charCodeAt(0) */) {
                 saveScope(cur, StaticAnalyzer.scopeTypes.arrowFunction);
             } else if (jsDelimiterChars.indexOf(this.source.charCodeAt(i - 1)) !== -1 &&
                 jsDelimiterChars.indexOf(this.source.charCodeAt(i + 3)) !== -1 &&
-                // cur === 'f'.charCodeAt(0) &&
-                // this.source.charCodeAt(i + 1) === 'o'.charCodeAt(0) &&
-                // this.source.charCodeAt(i + 2) === 'r'.charCodeAt(0)
                 this.source.substr(i, 3) === 'for') {
                 saveScope(cur, StaticAnalyzer.scopeTypes.for);
             } else {
-
-
-
                 // arrow functions, e.g. a = (a,b,c,d)=>a+b+c+typeof d
                 if (bracketStack[bracketStack.length - 1] === -1) {
-                    if (cur === ';'.charCodeAt(0) || cur === ','.charCodeAt(0)) {
+                    if (cur === 59 /* ';'.charCodeAt(0) */ || cur === 44 /* ','.charCodeAt(0) */) {
                         saveScope(-2, StaticAnalyzer.scopeTypes.expression);
                     } else if (cur === '\n'.charCodeAt(0)) {
                         if (this.checkIfExpressionIsOver(i)) {
@@ -722,24 +588,24 @@ class StaticAnalyzer {
 
                 // for loops e.g. for (let i=0;i<10;i++) console.log(i), i++, true, i--
                 if (bracketStack[bracketStack.length - 1] === -3) {
-                    if (cur === ';'.charCodeAt(0)) {
+                    if (cur === 59 /* ';'.charCodeAt(0) */) {
                         saveScope(-4, StaticAnalyzer.scopeTypes.singleStatement);
-                    } else if (cur === '\n'.charCodeAt(0)) {
+                    } else if (cur === 10 /* '\n'.charCodeAt(0) */) {
                         if (this.checkIfExpressionIsOver(i)) {
                             saveScope(-4, StaticAnalyzer.scopeTypes.singleStatement);
                         }
                     }
                 }
 
-                if (cur === '('.charCodeAt(0) || cur === '['.charCodeAt(0)) {
+                if (cur === 40 /* '('.charCodeAt(0) */ || cur === 91 /* '['.charCodeAt(0) */) {
                     bracketStack.push(cur);
-                } else if (cur === ')'.charCodeAt(0)) {
-                    popBracketStack(')'.charCodeAt(0));
-                } else if (cur === ']'.charCodeAt(0)) {
-                    popBracketStack(']'.charCodeAt(0));
+                } else if (cur === 41 /* ')'.charCodeAt(0) */) {
+                    popBracketStack(41 /* ')'.charCodeAt(0) */);
+                } else if (cur === 93 /* ']'.charCodeAt(0) */) {
+                    popBracketStack(93 /* ']'.charCodeAt(0) */);
 
                     const j = this.skipNonCode(i + 1, cOBJ);
-                    if (this.source.charCodeAt(j) === '='.charCodeAt(0)) {
+                    if (this.source.charCodeAt(j) === 61 /* '='.charCodeAt(0) */) {
                         this._destructions.push(i);
                     }
                 }
@@ -829,7 +695,8 @@ class StaticAnalyzer {
                 continue;
             }
 
-            if ((skipNewLine && this.source.charCodeAt(j) === 10) || (skipWhitespace && this.source.charCodeAt(j) <= 32 && this.source.charCodeAt(j) !== 10)) {
+            const curCharCode = this.source.charCodeAt(j);
+            if ((skipNewLine && curCharCode === 10) || (skipWhitespace && curCharCode <= 32 && curCharCode !== 10)) {
                 j += direction;
                 continue;
             }
@@ -855,8 +722,8 @@ class StaticAnalyzer {
             curCommentIndex = binarySearchIntervals(this._commentsAndStrings, j, true);
         }
 
-        const isOpening = ['{'.charCodeAt(0), '('.charCodeAt(0), '['.charCodeAt(0)].indexOf(bracket) !== -1;
-        const isClosing = ['}'.charCodeAt(0), ')'.charCodeAt(0), ']'.charCodeAt(0)].indexOf(bracket) !== -1;
+        const isOpening = [123 /* '{'.charCodeAt(0) */, 40 /* '('.charCodeAt(0) */, 91 /* '['.charCodeAt(0) */].indexOf(bracket) !== -1;
+        const isClosing = [125 /* '}'.charCodeAt(0) */, 41 /* ')'.charCodeAt(0) */, 93 /* ']'.charCodeAt(0) */].indexOf(bracket) !== -1;
 
         if (!isOpening && !isClosing)
             return oldJ;
@@ -877,17 +744,17 @@ class StaticAnalyzer {
         }
 
         let reverseBracket;
-        if (bracket === '('.charCodeAt(0))
-            reverseBracket = ')'.charCodeAt(0);
+        if (bracket === 40 /* '('.charCodeAt(0) */)
+            reverseBracket = 41 /* ')'.charCodeAt(0) */;
 
-        if (bracket === ')'.charCodeAt(0))
-            reverseBracket = '('.charCodeAt(0);
+        if (bracket === 41 /* ')'.charCodeAt(0) */)
+            reverseBracket = 40 /* '('.charCodeAt(0) */;
 
-        if (bracket === '['.charCodeAt(0))
-            reverseBracket = ']'.charCodeAt(0);
+        if (bracket === 91 /* '['.charCodeAt(0) */)
+            reverseBracket = 93 /* ']'.charCodeAt(0) */;
 
-        if (bracket === ']'.charCodeAt(0))
-            reverseBracket = '['.charCodeAt(0);
+        if (bracket === 93 /* ']'.charCodeAt(0) */)
+            reverseBracket = 91 /* '['.charCodeAt(0) */;
 
         let stack = 1;
         const direction = isOpening ? 1 : -1;
@@ -987,7 +854,7 @@ class StaticAnalyzer {
         return curCommentIndex;
     };
 
-    isSubstringInArray(index, array, direction = 1, params = cOBJ) {
+    isSubstringInArray(index, array, direction = 1) {
         let i = 0;
         let curLength = 0;
         const len = array.length;
@@ -1403,9 +1270,9 @@ class StaticAnalyzer {
                 memory.nonCodeSkipped = i !== j;
                 i = j;
 
-                if(checkES5Import) {
+                if (checkES5Import) {
                     const nextString = this._commentsAndStrings[this.nextString(i)];
-                    if(i === nextString[0]) {
+                    if (i === nextString[0]) {
                         memory.importType = 'es5';
                         memory.importEnd = nextString[1];
                         memory.from = this.source.substring(nextString[0] + 1, nextString[1] - 1);
