@@ -123,7 +123,7 @@ class JSHandler extends EventEmitter {
                     // if (!file._isRun){
                     file._isRun = true;
                     // console.log(`running ${file.url}`);
-                    runCode.bind(window)(setters, ...curImports);
+                    runCode.bind(window)(file.exportedValues, setters, ...curImports);
 
                     const forwardExport = (fromUrl, name, label) => {
 
@@ -182,6 +182,7 @@ class JSHandler extends EventEmitter {
                     const cur = this.files[absoluteURL];
                     promises.push(() => this.eval(file.url, cur, newImportHistory));
                 }
+
                 const _resolve = (i) => {
                     if (i === promises.length) {
                         // console.log(`All dependencies evaled for ${file.url}`);

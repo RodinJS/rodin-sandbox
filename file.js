@@ -10,16 +10,16 @@ class StringTokenizer {
     }
 
     addExportedVariable(label) {
-        this.add(-1, `exports._${label} = void 0;\n`);
-        this.add(-1, `Object.defineProperty(exports, '${label}', {
+        this.add(-1, `_exports._${label} = void 0;\n`);
+        this.add(-1, `Object.defineProperty(_exports, '${label}', {
             enumerable: true,
             set: (value) => {     
-                exports._${label} = value;
-                exports.emit('valuechange', {newValue: value, label: '${label}'});
+                _exports._${label} = value;
+                _exports.emit('valuechange', {newValue: value, label: '${label}'});
             },
-            get: () => exports._${label}
+            get: () => _exports._${label}
         })\n\n`);
-        this.add(-1, `exports.__labels__.add('${label}')\n`);
+        this.add(-1, `_exports.__labels__.add('${label}')\n`);
     }
 
     remove(start, end) {
@@ -136,7 +136,7 @@ class File extends EventEmitter {
             const import_variables = imports.filter(i => !i.isES5).map(i => i.label).join(', ');
 
             tokenizer.add(-1, `// ${this.url}\n`);
-            tokenizer.add(-1, `${args.loadImports}([${this.dependencies.map(i=>`'${i}'`).join(', ')}],(function (_setters, ${import_variables}){\n`);
+            tokenizer.add(-1, `${args.loadImports}([${this.dependencies.map(i=>`'${i}'`).join(', ')}],(function (_exports, _setters, ${import_variables}){\n`);
             // todo: fix this later. no time now
             tokenizer.add(-1, `
                 for(let i in _setters) {
@@ -150,7 +150,6 @@ class File extends EventEmitter {
                     })
                 }
             `);
-            tokenizer.add(-1, `const exports = ${args.exportedValues};\n`);
 
             let curIndex = -1;
             for (let i = 0; i < imports.length; i++) {
@@ -177,11 +176,11 @@ class File extends EventEmitter {
                 if (!processedNames[name]) {
                     tokenizer.addExportedVariable(label);
                 } else {
-                    tokenizer.add(-1, `Object.defineProperty(exports, '${label}', {
+                    tokenizer.add(-1, `Object.defineProperty(_exports, '${label}', {
                         enumerable: true,
-                        get: () => exports.${processedNames[name]},
+                        get: () => _exports.${processedNames[name]},
                     })`);
-                    tokenizer.add(-1, `\nexports.on('${processedNames[name]}', value => exports.emit('${label}', value))\n`);
+                    tokenizer.add(-1, `\n_exports.on('${processedNames[name]}', value => _exports.emit('${label}', value))\n`);
 
                     continue;
                 }
@@ -202,12 +201,12 @@ class File extends EventEmitter {
                     } else if (exprt.isFunction || exprt.isGeneratorFunction || exprt.isClass) {
                         tokenizer.remove(exprt.exportBeginning, exprt.exportBeginning + 6);
                     } else if (exprt.isDefault) {
-                        tokenizer.replace(exprt.exportBeginning, exprt.exportEnd + 6, `exports.default = `);
+                        tokenizer.replace(exprt.exportBeginning, exprt.exportEnd + 6, `_exports.default = `);
                     }
                 }
 
                 if(exprt.isBrackets && !exprt.from) {
-                    tokenizer.add(exprt.exportEnd, `\nexports.${label} = ${name}\n`);
+                    tokenizer.add(exprt.exportEnd, `\n_exports.${label} = ${name}\n`);
                 }
 
                 curIndex = exprt.exportIndex;
@@ -217,15 +216,14 @@ class File extends EventEmitter {
 
                     if (ref.declaration) {
                         if (ref.declaration === 'function' || ref.declaration === 'function*') {
-                            tokenizer.add(-1, `exports._${label} = ${name};\n`);
+                            tokenizer.add(-1, `_exports._${label} = ${name};\n`);
                         } else if (ref.declaration === 'class') {
-                            // tokenizer.add(this.source.length, `\nexports.${label} = ${name};\n`);
-                            tokenizer.add(ref.declarationStart, `exports.${label} = `);
+                            tokenizer.add(ref.declarationStart, `_exports.${label} = `);
                         } else if (ref.isOverride.value) {
-                            tokenizer.add(ref.isOverride.index + 1, `= exports.${label} `);
+                            tokenizer.add(ref.isOverride.index + 1, `= _exports.${label} `);
                         }
                     } else if (!exprt.isBrackets || (ref.index < exprt.exportBeginning || ref.index >= exprt.exportEnd)) {
-                        tokenizer.replace(ref.index, ref.index + name.length, `exports.${label}`)
+                        tokenizer.replace(ref.index, ref.index + name.length, `_exports.${label}`)
                     }
                 }
             }
