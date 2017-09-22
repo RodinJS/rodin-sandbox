@@ -24,7 +24,6 @@ class JSHandler extends EventEmitter {
 
         this.evalHistory = new Set();
 
-        // this.handleUrl(new Set(), '', url);
         const startTime = Date.now();
 
         this.loadDependencyTree('', url).then((file) => {
@@ -118,11 +117,8 @@ class JSHandler extends EventEmitter {
                             setters[key].imports[file.analyzer.imports[i].name] = file.analyzer.imports[i].label;
                         }
                     }
-                    // console.log(`Running code for ${file.url}`);
 
-                    // if (!file._isRun){
                     file._isRun = true;
-                    // console.log(`running ${file.url}`);
                     runCode.bind(window)(file.exportedValues, setters, ...curImports);
 
                     const forwardExport = (fromUrl, name, label) => {
@@ -185,15 +181,15 @@ class JSHandler extends EventEmitter {
 
                 const _resolve = (i) => {
                     if (i === promises.length) {
-                        // console.log(`All dependencies evaled for ${file.url}`);
-                        // console.log(Array.from(importHistory).map(i => i.split('/')[i.split('/').length - 2] + '/' + i.split('/')[i.split('/').length - 1]));
                         checkIfAllIsDone();
                         return;
                     }
+
                     promises[i]().then(() => {
                         _resolve(++i);
                     })
                 };
+
                 _resolve(0);
             };
 

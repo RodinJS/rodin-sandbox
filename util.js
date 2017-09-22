@@ -85,6 +85,14 @@ function binarySearchUpperBound(array, value) {
     return low > array.length - 1 ? -1 : low;
 }
 
+
+// maybe use js log? idk need to check
+const getLog = (n) => {
+    let res = 1;
+    while ((1 << res) <= n) ++res;
+    return res;
+};
+
 const doEvalCheck = (expr, direction = -1) => {
     try {
         let a = 0, b = 0;
@@ -146,7 +154,7 @@ class Graph {
         this._dfsExit = new Array(n);
 
         this._up = new Array(n);
-        this._log = Math.log2(n);
+        this._log = getLog(n);
 
         for (let i = 0; i < n; i++) {
             for (let j = 0; j < this._graph[i].length; j++) {
@@ -154,7 +162,7 @@ class Graph {
             }
         }
 
-        const log = Math.log2(n);
+        const log = getLog(n);
         for (let i = 0; i < n; i++) {
             this._up[i] = new Array(log + 1);
         }
