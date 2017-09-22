@@ -1,10 +1,3 @@
-// import {x} from 'test2.js';
-//
-// console.log(x);
-
-// import {} from 'tmp.js';
-// setInterval(() => console.log('test', x), 1000);
-
 import 'https://cdnjs.cloudflare.com/ajax/libs/three.js/87/three.js';
 import 'http://192.168.0.31:8000/dist/vendor/vendor.js';
 

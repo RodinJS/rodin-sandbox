@@ -1762,7 +1762,6 @@ class StaticAnalyzer {
         }
         return arrRes.join('\n');
     }
-
 }
 
 StaticAnalyzer.scopeTypes = {
