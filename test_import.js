@@ -1,1 +1,0 @@
-export * from 'test_import3.js';
