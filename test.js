@@ -2,15 +2,44 @@ import 'https://cdnjs.cloudflare.com/ajax/libs/three.js/87/three.js';
 import 'http://192.168.0.31:8000/dist/vendor/vendor.js';
 
 import * as RODIN from 'http://192.168.0.31:8000/src/core/index.js';
-window.R = RODIN;
-RODIN.start();
-console.log(RODIN);
+import {VPcontrolPanel} from 'test2.js';
 
-const box = new RODIN.Box(new THREE.MeshNormalMaterial());
-RODIN.Scene.add(box);
-box.position.z = -5;
-box.on(RODIN.CONST.UPDATE, () => {
-    box.rotation.y += 0.001 * RODIN.Time.delta;
-    box.rotation.z += 0.001 * RODIN.Time.delta;
+
+RODIN.start();
+
+let player = new RODIN.MaterialPlayer({
+    HD: "./video/rodin2k.mp4",
+    SD: "./video/rodin1k.mp4",
+    default: "HD"
 });
 
+let material = new THREE.MeshBasicMaterial({
+    map: player.getTexture()
+});
+window.camera = RODIN.Scene.activeCamera;
+
+let sphere = new RODIN.Sculpt(new THREE.Mesh(new THREE.SphereBufferGeometry(90, 720, 4), material));
+sphere.scale.set(1, 1, -1);
+sphere.rotation.y = Math.PI/2;
+RODIN.Scene.add(sphere);
+
+RODIN.Scene.preRender(function () {
+    player.update(RODIN.Time.delta);
+});
+
+let controlPanel = new VPcontrolPanel({
+    player : player,
+    title: "Pedra Bonita 360° video",
+    cover: "img/rodin.jpg",
+    distance: 2,
+    width: 3
+});
+
+controlPanel.on(RODIN.CONST.READY, (evt) => {
+    RODIN.Scene.add(evt.target);
+    evt.target.position.y = 1.6;
+    if(evt.target.coverEl) {
+        evt.target.coverEl.rotation.y = -Math.PI/2;
+    }
+
+});

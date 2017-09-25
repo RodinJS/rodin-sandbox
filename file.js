@@ -156,7 +156,6 @@ class File extends EventEmitter {
                 if (curIndex === imports[i].importIndex) continue;
                 tokenizer.add(imports[i].importBeginning, '/*');
                 tokenizer.add(imports[i].importEnd, '*/');
-                // tokenizer.remove(imports[i].importBeginning, imports[i].importEnd);
                 curIndex = imports[i].importIndex;
             }
 
@@ -192,6 +191,7 @@ class File extends EventEmitter {
                 if (!exprt.isDefault) {
                     references = this.analyzer.findReferences(name);
                 }
+
 
                 if (curIndex !== exprt.exportIndex) {
                     if (exprt.isLet || exprt.isVar || exprt.isConst) {

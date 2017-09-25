@@ -248,6 +248,7 @@ const path = {
                     res.push(paths[i]);
             }
         }
+
         return absolutePrefix + res.join('/');
     }
 };

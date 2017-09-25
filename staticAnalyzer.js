@@ -33,6 +33,7 @@ class StaticAnalyzer {
             this.source.charCodeAt(a) === 91 /* '['.charCodeAt(0) */) {
             return false;
         }
+
         while (true) {
             if (StaticAnalyzer.operatorChars.indexOf(this.source.charCodeAt(a)) === -1) {
                 let [s, e] = this.getWordFromIndex(a);
@@ -644,7 +645,7 @@ class StaticAnalyzer {
                     scopeStack.push(allScopes[i][1]);
 
                 } else {
-                    this._closingEs5ScopesSorted[0].push(es5Scopes[allScopes[i][1]]);
+                    this._closingEs5ScopesSorted[0].push(es5Scopes[1][allScopes[i][1]]);
                     this._closingEs5ScopesSorted[1].push(allScopes[i][1]);
                     scopeStack.pop();
                 }
@@ -1669,6 +1670,7 @@ class StaticAnalyzer {
                 const declaration = getDeclarationType(index, this.findScope(index), isOverride, params);
                 const scopeType = declarationTypeScopes[declarationTypes.indexOf(declaration)];
                 const scope = this.findScope(index, scopeType, true);
+
                 references.push({
                     index,
                     isOverride: Object.assign({}, isOverride),
@@ -1677,6 +1679,7 @@ class StaticAnalyzer {
                     scopeType,
                     declarationStart: params.start
                 });
+
                 if (declaration && scope !== 0) {
                     this._es6ScopeGraph.dfs(scope => {
                         scopesToIgnore[scope] = 1;
@@ -1688,8 +1691,9 @@ class StaticAnalyzer {
         const ret = [];
         for (let i = 0; i < references.length; i++) {
             const ref = references[i];
-            if (scopesToIgnore[ref.scope])
+            if (scopesToIgnore[ref.scope]) {
                 continue;
+            }
 
             ret.push(ref);
         }
