@@ -1,7 +1,10 @@
 class StringTokenizer {
-    constructor(str) {
+    constructor(str, sourceMapType = 0) {
         this.string = str;
         this.changes = [];
+
+        this.sourceMapType = sourceMapType;
+        this.sourceMap = [];
     }
 
     add(index, token) {
@@ -9,6 +12,7 @@ class StringTokenizer {
         return this;
     }
 
+    // TODO: @gor remove this from here!
     addExportedVariable(label) {
         this.add(-1, `_exports._${label} = void 0;\n`);
         this.add(-1, `Object.defineProperty(_exports, '${label}', {
@@ -53,10 +57,29 @@ class StringTokenizer {
             return i.originalIndex - j.originalIndex;
         });
 
+        let lastSkippedLines = 0;
+
         for (let i = 0; i < this.changes.length; i++) {
             if (this.changes[i].type === StringTokenizer.changeTypes.add) {
                 tmp.push(this.string.substring(curIndexOriginalString, this.changes[i].index));
                 tmp.push(this.changes[i].token);
+
+                if (this.sourceMapType === 1) {
+                    let skippedLines = find(tmp[tmp.length - 1], '\n').length;
+
+                    this.sourceMap.push(... new Array(skippedLines).fill('A'));
+                    // lastSkippedLines = skippedLines;
+
+                    const keptLines = find(tmp[tmp.length - 2], '\n').length;
+
+                    for (let j = 0; j < keptLines; j++) {
+                        this.sourceMap.push(`AA${vlq.encode(lastSkippedLines)}A`);
+                        lastSkippedLines = 1;
+                    }
+
+                    // this.sourceMap.push(... new Array(keptLines).fill('AAAA'));
+                }
+
                 curIndexOriginalString = this.changes[i].index;
             }
 
@@ -124,19 +147,18 @@ class File extends EventEmitter {
         return new Promise((resolve, reject) => {
             const imports = this.analyzer.imports;
             const exports = this.analyzer.exports;
-            const tokenizer = new StringTokenizer(this.source);
+            const tokenizer = new StringTokenizer(this.source, 1);
 
             this.dependencies = Array.from(
                 new Set(
-                    this.analyzer.imports.
-                    concat(this.analyzer.exports.filter(i => !!i.from)).map(i => `${i.from}`)
+                    this.analyzer.imports.concat(this.analyzer.exports.filter(i => !!i.from)).map(i => `${i.from}`)
                 )
             );
 
             const import_variables = imports.filter(i => !i.isES5).map(i => i.label).join(', ');
 
             tokenizer.add(-1, `// ${this.url}\n`);
-            tokenizer.add(-1, `${args.loadImports}([${this.dependencies.map(i=>`'${i}'`).join(', ')}],(function (_exports, _setters, ${import_variables}){\n`);
+            tokenizer.add(-1, `${args.loadImports}([${this.dependencies.map(i => `'${i}'`).join(', ')}],(function (_exports, _setters, ${import_variables}){\n`);
             // todo: fix this later. no time now
             tokenizer.add(-1, `
                 for(let i in _setters) {
@@ -165,7 +187,7 @@ class File extends EventEmitter {
             curIndex = -1;
             for (let i = 0; i < exports.length; i++) {
                 const exprt = exports[i];
-                if(exprt.from) {
+                if (exprt.from) {
                     tokenizer.remove(exprt.exportBeginning, exprt.exportEnd);
                     continue;
                 }
@@ -205,7 +227,7 @@ class File extends EventEmitter {
                     }
                 }
 
-                if(exprt.isBrackets && !exprt.from) {
+                if (exprt.isBrackets && !exprt.from) {
                     tokenizer.add(exprt.exportEnd, `\n_exports.${label} = ${name}\n`);
                 }
 
@@ -231,6 +253,9 @@ class File extends EventEmitter {
             tokenizer.add(this.source.length, `\n}))`);
 
             this.transpiledSource = tokenizer.apply();
+
+            this.transpiledSource += `\n //# sourceMappingURL=${generateSourceMap(this.url, this.source, tokenizer.sourceMap.join(';'))}`;
+            console.log(this.transpiledSource);
             // console.log(this.transpiledSource);
             this._isTranspiled = true;
             this.emit('transpiled', {});
@@ -238,3 +263,36 @@ class File extends EventEmitter {
         });
     }
 }
+
+const generateSourceMap = (filename, source, mappings) => {
+    const map = {
+        "version": 3,
+        "file": filename,
+        "sourceRoot": "",
+        "sources": [
+            filename
+        ],
+        "sourcesContent": [
+            source
+        ],
+        "names": [],
+        "mappings": mappings
+    };
+    console.log(map);
+    const res = 'data:application/json;base64,' + btoa(JSON.stringify(map));
+    return res;
+};
+
+// const find = (source, needle, method = 'indexOf') => {
+//     const res = [];
+//     let cur = -1;
+//
+//     do {
+//         cur = source[method](needle, cur + 1);
+//         if (cur === -1)
+//             break;
+//         res.push([cur, needle]);
+//     } while (true);
+//
+//     return res;
+// };

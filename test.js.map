@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "file": "test.js",
+  "sourceRoot": "",
+  "sources": [
+    "test.js"
+  ],
+  "sourcesContent": [
+    "// import 'https://cdnjs.cloudflare.com/ajax/libs/three.js/87/three.js';\n// import 'http://192.168.0.31:8000/dist/vendor/vendor.js';\n//\n// import * as RODIN from 'http://192.168.0.31:8000/src/core/index.js';\n// window.R = RODIN;\n// RODIN.start();\n// console.log(RODIN);\n//\n// const box = new RODIN.Box(new THREE.MeshNormalMaterial());\n// RODIN.Scene.add(box);\n// box.position.z = -5;\n// box.on(RODIN.CONST.UPDATE, () => {\n//     box.rotation.y += 0.001 * RODIN.Time.delta;\n//     box.rotation.z += 0.001 * RODIN.Time.delta;\n// });\n//\n\n// debugger;\n\nimport 'test2.js';\n\nconsole.log('here');\nsetInterval(() => {\n    console.log('timeout');\n}, 100);\n"
+  ],
+  "names": [],
+  "mappings": "A;A;A;A;A;A;A;A;A;A;A;A;A;AAAA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;A;AACA;AACA;AACA;AACA;AACA;AACA"
+}
